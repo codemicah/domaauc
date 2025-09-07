@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Domain Auction Flow', () => {
+test.describe('DomaAuc Auction Flow', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the app
     await page.goto('/');

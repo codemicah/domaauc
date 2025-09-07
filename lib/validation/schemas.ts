@@ -29,7 +29,6 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_SUPPORTED_CHAINS: z.string(),
   NEXT_PUBLIC_WC_PROJECT_ID: z.string().min(1),
-  NEXT_PUBLIC_SIWE_DOMAIN: z.string().min(1),
   NEXT_PUBLIC_DOMA_API_URL: z.string().url(),
   NEXT_PUBLIC_DOMA_API_KEY: z.string().min(1),
 });
@@ -39,11 +38,9 @@ export const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   NEXT_PUBLIC_SUPPORTED_CHAINS: z.string(),
   NEXT_PUBLIC_WC_PROJECT_ID: z.string().min(1),
-  NEXT_PUBLIC_SIWE_DOMAIN: z.string().min(1),
   NEXT_PUBLIC_DOMA_API_URL: z.string().url(),
   NEXT_PUBLIC_DOMA_API_KEY: z.string().min(1),
   MONGODB_URI: z.string().min(1),
-  SESSION_SECRET: z.string().min(32),
 });
 
 // Legacy schema for backward compatibility

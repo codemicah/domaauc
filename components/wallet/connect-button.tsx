@@ -2,110 +2,65 @@
 
 import { useWeb3Modal } from '@web3modal/wagmi/react';
 import { useAccount, useDisconnect } from 'wagmi';
-import { SiweMessage } from 'siwe';
 import { useState, useEffect } from 'react';
-import { useSignMessage } from 'wagmi';
 
 export function ConnectButton(): React.ReactElement {
   const { open } = useWeb3Modal();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const { signMessageAsync } = useSignMessage();
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const handleAuth = async (): Promise<void> => {
-    if (!address) return;
-
-    setIsAuthenticating(true);
-    try {
-      const message = new SiweMessage({
-        domain: window.location.host,
-        address,
-        statement: 'Sign in to Domain Auction App',
-        uri: window.location.origin,
-        version: '1',
-        chainId: 1,
-        nonce: crypto.randomUUID(),
-      });
-
-      const signature = await signMessageAsync({
-        message: message.prepareMessage(),
-      });
-
-      const response = await fetch('/api/auth/siwe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message.prepareMessage(),
-          signature,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Authentication failed');
-      }
-
-      window.location.reload();
-    } catch (error) {
-      console.error('Authentication error:', error);
-    } finally {
-      setIsAuthenticating(false);
-    }
+  const handleConnect = () => {
+    open();
   };
 
-  const handleLogout = async (): Promise<void> => {
-    await fetch('/api/auth/siwe', { method: 'DELETE' });
-    disconnect();
-    window.location.reload();
+  const handleAccount = () => {
+    open({ view: 'Account' });
   };
 
   if (!isMounted) {
     return (
       <button
         disabled
-        className="bg-blue-600 text-white px-4 py-2 rounded-lg opacity-50"
+        className="bg-blue-600 text-white px-6 py-2 rounded-lg opacity-50 font-medium transition-all flex items-center gap-2"
       >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
         Connect Wallet
       </button>
     );
   }
 
-  if (!isConnected) {
+  if (isConnected && address) {
     return (
       <button
-        onClick={() => open()}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+        onClick={handleAccount}
+        className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
       >
-        Connect Wallet
+        <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+          <span className="text-xs font-bold text-white">
+            {address.slice(2, 4).toUpperCase()}
+          </span>
+        </div>
+        {address.slice(0, 6)}...{address.slice(-4)}
       </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-400">
-        {address?.slice(0, 6)}...{address?.slice(-4)}
-      </span>
-      <button
-        onClick={handleAuth}
-        disabled={isAuthenticating}
-        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm transition-colors"
-      >
-        {isAuthenticating ? 'Signing...' : 'Sign In'}
-      </button>
-      <button
-        onClick={handleLogout}
-        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition-colors"
-      >
-        Logout
-      </button>
-    </div>
+    <button
+      onClick={handleConnect}
+      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+      Connect Wallet
+    </button>
   );
 }

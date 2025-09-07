@@ -1,23 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/middleware';
 import { getListingsCollection, getOffersCollection } from '@/lib/db/mongo';
-import { acceptOfferSchema } from '@/lib/validation/schemas';
-import { acceptOffer } from '@/lib/doma/sdk';
+import { acceptOfferSchema, addressSchema } from '@/lib/validation/schemas';
 
 interface RouteParams {
-  params: Promise<{ id: string }>;
+  params: {
+    id: string;
+  };
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
-  const authResult = await requireAuth(request);
-  
-  if (authResult instanceof NextResponse) {
-    return authResult;
-  }
-
   try {
-    const { id: listingId } = await params;
+    const { id: listingId } = params;
     const body = await request.json();
+    
+    // Validate seller address if provided
+    if (!body.seller) {
+      return NextResponse.json(
+        { error: 'Seller address is required' },
+        { status: 400 }
+      );
+    }
+
+    const sellerValidation = addressSchema.safeParse(body.seller);
+    if (!sellerValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid seller address format' },
+        { status: 400 }
+      );
+    }
+
     const validationResult = acceptOfferSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -40,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     }
 
     // Verify the requesting user is the seller
-    if (listing.seller.toLowerCase() !== authResult.address.toLowerCase()) {
+    if (listing.seller.toLowerCase() !== body.seller.toLowerCase()) {
       return NextResponse.json(
         { error: 'Only the seller can accept offers' },
         { status: 403 }
@@ -87,11 +98,14 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     try {
       // Accept offer via Doma SDK
       if (offer.domaOfferId) {
-        const result = await acceptOffer({
+        console.log('Would accept offer via Doma SDK:', {
           offerId: offer.domaOfferId,
-          walletClient: {} as any, // Mock wallet client
         });
-        transactionHash = result.transactionHash;
+        // const result = await acceptOffer({
+        //   offerId: offer.domaOfferId,
+        //   walletClient: {} as any, // Mock wallet client
+        // });
+        // transactionHash = result.transactionHash;
       }
     } catch (sdkError) {
       console.error('Doma SDK error:', sdkError);

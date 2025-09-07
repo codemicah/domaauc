@@ -4,12 +4,16 @@ import { useState } from 'react';
 import { DomainToken } from '@/lib/doma/types';
 import { DomainPicker } from '@/components/ui/domain-picker';
 import { DutchPricePreview } from './dutch-price-preview';
-import { parseEther, formatEther } from 'viem';
+import { parseEther } from 'viem';
 import { useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
 
 export function CreateListingForm(): React.ReactElement {
   const router = useRouter();
-  const [selectedDomain, setSelectedDomain] = useState<DomainToken | null>(null);
+  const { address } = useAccount();
+  const [selectedDomain, setSelectedDomain] = useState<DomainToken | null>(
+    null
+  );
   const [formData, setFormData] = useState({
     startPrice: '1.0',
     reservePrice: '0.1',
@@ -20,7 +24,7 @@ export function CreateListingForm(): React.ReactElement {
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    
+
     if (!selectedDomain) {
       setError('Please select a domain');
       return;
@@ -31,7 +35,9 @@ export function CreateListingForm(): React.ReactElement {
 
     try {
       const startAt = new Date(Date.now() + 5 * 60 * 1000); // Start in 5 minutes
-      const endAt = new Date(startAt.getTime() + parseInt(formData.duration) * 60 * 60 * 1000);
+      const endAt = new Date(
+        startAt.getTime() + parseInt(formData.duration) * 60 * 60 * 1000
+      );
 
       const response = await fetch('/api/listings', {
         method: 'POST',
@@ -46,6 +52,7 @@ export function CreateListingForm(): React.ReactElement {
           reservePriceWei: parseEther(formData.reservePrice).toString(),
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
+          seller: address,
         }),
       });
 
@@ -64,23 +71,32 @@ export function CreateListingForm(): React.ReactElement {
   };
 
   const handleInputChange = (field: string, value: string): void => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const isValidForm = selectedDomain && 
-    parseFloat(formData.startPrice) > 0 && 
-    parseFloat(formData.reservePrice) > 0 && 
+  const isValidForm =
+    selectedDomain &&
+    parseFloat(formData.startPrice) > 0 &&
+    parseFloat(formData.reservePrice) > 0 &&
     parseFloat(formData.reservePrice) <= parseFloat(formData.startPrice) &&
     parseInt(formData.duration) >= 1;
 
   const previewStartAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-  const previewEndAt = new Date(Date.now() + 5 * 60 * 1000 + parseInt(formData.duration || '24') * 60 * 60 * 1000).toISOString();
+  const previewEndAt = new Date(
+    Date.now() +
+      5 * 60 * 1000 +
+      parseInt(formData.duration || '24') * 60 * 60 * 1000
+  ).toISOString();
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">Create Dutch Auction</h1>
-        <p className="text-white/70">List your tokenized domain for auction with declining price</p>
+        <h1 className="text-3xl font-bold text-white mb-2">
+          Create Dutch Auction
+        </h1>
+        <p className="text-white/70">
+          List your tokenized domain for auction with declining price
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -94,8 +110,10 @@ export function CreateListingForm(): React.ReactElement {
 
           {/* Auction Parameters */}
           <div className="glass-card">
-            <h3 className="text-lg font-semibold text-white mb-4">Auction Parameters</h3>
-            
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Auction Parameters
+            </h3>
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-white/80 mb-2">
@@ -106,7 +124,9 @@ export function CreateListingForm(): React.ReactElement {
                   step="0.001"
                   min="0"
                   value={formData.startPrice}
-                  onChange={(e) => handleInputChange('startPrice', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange('startPrice', e.target.value)
+                  }
                   className="glass-input w-full"
                   placeholder="1.0"
                   required
@@ -123,7 +143,9 @@ export function CreateListingForm(): React.ReactElement {
                   min="0"
                   max={formData.startPrice}
                   value={formData.reservePrice}
-                  onChange={(e) => handleInputChange('reservePrice', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange('reservePrice', e.target.value)
+                  }
                   className="glass-input w-full"
                   placeholder="0.1"
                   required
@@ -136,7 +158,9 @@ export function CreateListingForm(): React.ReactElement {
                 </label>
                 <select
                   value={formData.duration}
-                  onChange={(e) => handleInputChange('duration', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange('duration', e.target.value)
+                  }
                   className="glass-input w-full"
                   required
                 >
@@ -161,7 +185,9 @@ export function CreateListingForm(): React.ReactElement {
                 disabled={!isValidForm || isSubmitting}
                 className="glass-button w-full disabled:opacity-50"
               >
-                {isSubmitting ? 'Creating Listing...' : 'Create Auction Listing'}
+                {isSubmitting
+                  ? 'Creating Listing...'
+                  : 'Create Auction Listing'}
               </button>
             </form>
           </div>
@@ -171,7 +197,9 @@ export function CreateListingForm(): React.ReactElement {
         <div className="space-y-6">
           {selectedDomain && (
             <div className="glass-card">
-              <h3 className="text-lg font-semibold text-white mb-4">Selected Domain</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">
+                Selected Domain
+              </h3>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center">
                   {selectedDomain.image ? (
@@ -181,14 +209,22 @@ export function CreateListingForm(): React.ReactElement {
                       className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
-                    <svg className="w-8 h-8 text-white/60" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      className="w-8 h-8 text-white/60"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" />
                     </svg>
                   )}
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white">{selectedDomain.name}</h4>
-                  <p className="text-sm text-white/60">Token ID: {selectedDomain.tokenId}</p>
+                  <h4 className="font-semibold text-white">
+                    {selectedDomain.name}
+                  </h4>
+                  <p className="text-sm text-white/60">
+                    Token ID: {selectedDomain.tokenId}
+                  </p>
                 </div>
               </div>
             </div>

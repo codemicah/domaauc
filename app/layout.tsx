@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Domain Auction App",
-  description: "Tokenized Domain Dutch Auction Platform",
+  title: "DomaAuc",
+  description: "DomaAuc - Tokenized Domain Dutch Auction Platform",
 };
 
 export default function RootLayout({

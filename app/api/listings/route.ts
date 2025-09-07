@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/middleware';
 import { getListingsCollection } from '@/lib/db/mongo';
-import { createListingSchema } from '@/lib/validation/schemas';
+import { createListingSchema, addressSchema } from '@/lib/validation/schemas';
 import { ListingMeta, ChainCAIP2 } from '@/lib/doma/types';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authResult = await requireAuth(request);
-  
-  if (authResult instanceof NextResponse) {
-    return authResult;
-  }
-
   try {
     const body = await request.json();
+    console.log(body);
+
+    // Validate seller address if provided
+    if (!body.seller) {
+      return NextResponse.json(
+        { error: 'Seller address is required' },
+        { status: 400 }
+      );
+    }
+
+    const sellerValidation = addressSchema.safeParse(body.seller);
+    if (!sellerValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid seller address format' },
+        { status: 400 }
+      );
+    }
+
     const validationResult = createListingSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -22,7 +33,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { tokenContract, tokenId, chainId, startPriceWei, reservePriceWei, startAt, endAt } = validationResult.data;
+    const {
+      tokenContract,
+      tokenId,
+      chainId,
+      startPriceWei,
+      reservePriceWei,
+      startAt,
+      endAt,
+    } = validationResult.data;
 
     // Validate price logic
     if (BigInt(reservePriceWei) > BigInt(startPriceWei)) {
@@ -61,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const listings = await getListingsCollection();
-    
+
     // Check for existing active listing for this token
     const existingListing = await listings.findOne({
       tokenContract: tokenContract as `0x${string}`,
@@ -83,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       tokenContract: tokenContract as `0x${string}`,
       tokenId,
       chainId: chainId as ChainCAIP2,
-      seller: authResult.address,
+      seller: body.seller as `0x${string}`,
       startPriceWei,
       reservePriceWei,
       startAt,
@@ -95,12 +114,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     await listings.insertOne(listing);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       listingId: listing._id,
-      listing 
+      listing,
     });
-
   } catch (error) {
     console.error('Failed to create listing:', error);
     return NextResponse.json(
@@ -119,7 +137,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const listings = await getListingsCollection();
-    
+
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (seller) filter.seller = seller.toLowerCase();
@@ -142,7 +160,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         hasMore: offset + limit < total,
       },
     });
-
   } catch (error) {
     console.error('Failed to fetch listings:', error);
     return NextResponse.json(

@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/middleware';
 import { getOffersCollection, getListingsCollection } from '@/lib/db/mongo';
-import { placeOfferSchema } from '@/lib/validation/schemas';
+import { placeOfferSchema, addressSchema } from '@/lib/validation/schemas';
 import { OfferMeta } from '@/lib/doma/types';
-import { createOffer } from '@/lib/doma/sdk';
-import { getWalletClient } from 'wagmi/actions';
+import { readContract } from '@wagmi/core';
+import { erc20Abi } from 'viem';
 import { wagmiConfig } from '@/lib/wagmi/config';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const authResult = await requireAuth(request);
-  
-  if (authResult instanceof NextResponse) {
-    return authResult;
-  }
-
   try {
     const body = await request.json();
+    
+    // Validate bidder address if provided
+    if (!body.bidder) {
+      return NextResponse.json(
+        { error: 'Bidder address is required' },
+        { status: 400 }
+      );
+    }
+
+    const bidderValidation = addressSchema.safeParse(body.bidder);
+    if (!bidderValidation.success) {
+      return NextResponse.json(
+        { error: 'Invalid bidder address format' },
+        { status: 400 }
+      );
+    }
+
     const validationResult = placeOfferSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -84,7 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Check for existing active offer from this bidder for this listing
     const existingOffer = await offers.findOne({
       listingId,
-      bidder: authResult.address,
+      bidder: body.bidder.toLowerCase(),
       status: 'ACTIVE',
     });
 
@@ -101,14 +111,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       // Mock SDK integration for development
       // In production, this would use the actual Doma SDK with proper wallet client
-      const mockResult = await createOffer({
+      console.log('Would create offer via Doma SDK:', {
         tokenContract: listing.tokenContract,
         tokenId: listing.tokenId,
         chainId: parseInt(listing.chainId.split(':')[1] || '1'),
         priceWei,
-        walletClient: {} as any, // Mock wallet client
       });
-      domaOfferId = mockResult.offerId;
+      // domaOfferId = mockResult.offerId;
     } catch (sdkError) {
       console.error('Doma SDK error:', sdkError);
       // Continue without SDK integration for now
@@ -118,7 +127,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       _id: offerId,
       listingId,
       domaOfferId,
-      bidder: authResult.address,
+      bidder: body.bidder as `0x${string}`,
       usernameSnapshot: username,
       priceWei,
       createdAt: new Date().toISOString(),

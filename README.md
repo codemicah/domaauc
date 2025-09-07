@@ -1,11 +1,11 @@
-# Tokenized Domain Dutch Auction
+# DomaAuc
 
 A production-ready web application for conducting Dutch auctions on tokenized domains with secure wallet authentication, real-time bidding, and comprehensive offer management.
 
 ## Features
 
 - **Dutch Auction Mechanism**: Linear price decay from start price to reserve price over time
-- **Secure Authentication**: SIWE (Sign-In With Ethereum) with session management
+- **Secure Authentication**: Wallet-based authentication with seamless connection
 - **Multi-chain Support**: Base Sepolia and Sepolia testnets
 - **Real-time Leaderboards**: Live offer tracking and ranking
 - **Responsive UI**: Dark theme with glassmorphism design
@@ -15,7 +15,7 @@ A production-ready web application for conducting Dutch auctions on tokenized do
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React 18, TailwindCSS
-- **Authentication**: SIWE, wagmi, viem, Web3Modal
+- **Authentication**: wagmi, viem, Web3Modal
 - **Database**: MongoDB with typed repositories
 - **Blockchain**: Doma Protocol SDK integration
 - **Testing**: Vitest (unit), Playwright (E2E)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
 import { ConnectButton } from './connect-button';
 
 interface AuthGuardProps {
@@ -9,22 +9,9 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children, fallback }: AuthGuardProps): React.ReactElement {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isConnected, isConnecting } = useAccount();
 
-  useEffect(() => {
-    const checkAuth = async (): Promise<void> => {
-      try {
-        const response = await fetch('/api/auth/me');
-        setIsAuthenticated(response.ok);
-      } catch {
-        setIsAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isAuthenticated === null) {
+  if (isConnecting) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -32,14 +19,14 @@ export function AuthGuard({ children, fallback }: AuthGuardProps): React.ReactEl
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         {fallback || (
           <>
-            <h1 className="text-2xl font-bold text-white">Authentication Required</h1>
+            <h1 className="text-2xl font-bold text-white">Connect Your Wallet</h1>
             <p className="text-gray-400 text-center max-w-md">
-              Please connect your wallet and sign in to access the domain auction platform.
+              Please connect your wallet to access the DomaAuc platform.
             </p>
             <ConnectButton />
           </>

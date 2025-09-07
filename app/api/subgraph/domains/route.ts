@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth/middleware';
 import { fetchUserDomains } from '@/lib/doma/subgraph';
-import { chainIdSchema } from '@/lib/validation/schemas';
+import { addressSchema, chainIdSchema } from '@/lib/validation/schemas';
 import { ChainCAIP2 } from '@/lib/doma/types';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const authResult = await requireAuth(request);
-  
-  if (authResult instanceof NextResponse) {
-    return authResult;
-  }
 
   const { searchParams } = new URL(request.url);
   const owner = searchParams.get('owner');
@@ -31,17 +25,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Ensure the requesting user can only fetch their own domains
-  if (owner.toLowerCase() !== authResult.address.toLowerCase()) {
+  // Validate owner address format
+  const ownerValidation = addressSchema.safeParse(owner);
+  if (!ownerValidation.success) {
     return NextResponse.json(
-      { error: 'Unauthorized: can only fetch your own domains' },
-      { status: 403 }
+      { error: 'Invalid owner address format' },
+      { status: 400 }
     );
   }
 
   try {
     const domains = await fetchUserDomains(
-      authResult.address,
+      owner as `0x${string}`,
       chainId as ChainCAIP2
     );
 

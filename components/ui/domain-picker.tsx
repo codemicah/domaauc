@@ -11,12 +11,16 @@ interface DomainPickerProps {
   onDomainSelect: (domain: DomainToken | null) => void;
 }
 
-export function DomainPicker({ selectedDomain, onDomainSelect }: DomainPickerProps): React.ReactElement {
+export function DomainPicker({
+  selectedDomain,
+  onDomainSelect,
+}: DomainPickerProps): React.ReactElement {
   const { address } = useAccount();
   const [domains, setDomains] = useState<DomainToken[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedChainId, setSelectedChainId] = useState<string>('eip155:84532'); // Base Sepolia default
+  const [selectedChainId, setSelectedChainId] =
+    useState<string>('eip155:43113'); // AvalancheFuji default
 
   useEffect(() => {
     if (!address) {
@@ -40,7 +44,9 @@ export function DomainPicker({ selectedDomain, onDomainSelect }: DomainPickerPro
         const data = await response.json();
         setDomains(data.domains || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch domains');
+        setError(
+          err instanceof Error ? err.message : 'Failed to fetch domains'
+        );
         setDomains([]);
       } finally {
         setLoading(false);
@@ -58,7 +64,9 @@ export function DomainPicker({ selectedDomain, onDomainSelect }: DomainPickerPro
   if (!address) {
     return (
       <div className="glass-card text-center">
-        <p className="text-white/70">Connect your wallet to view your domains</p>
+        <p className="text-white/70">
+          Connect your wallet to view your domains
+        </p>
       </div>
     );
   }
@@ -67,7 +75,9 @@ export function DomainPicker({ selectedDomain, onDomainSelect }: DomainPickerPro
     <div className="space-y-6">
       {/* Chain Selector */}
       <div className="glass-card">
-        <h3 className="text-lg font-semibold text-white mb-4">Select Network</h3>
+        <h3 className="text-lg font-semibold text-white mb-4">
+          Select Network
+        </h3>
         <div className="flex gap-3">
           {supportedChains.map((chain) => {
             const chainId = `eip155:${chain.id}`;
@@ -91,18 +101,14 @@ export function DomainPicker({ selectedDomain, onDomainSelect }: DomainPickerPro
       {/* Domain Grid */}
       <div className="glass-card">
         <h3 className="text-lg font-semibold text-white mb-4">Your Domains</h3>
-        
+
         {loading && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
           </div>
         )}
 
-        {error && (
-          <div className="text-red-400 text-center py-4">
-            {error}
-          </div>
-        )}
+        {error && <div className="text-red-400 text-center py-4">{error}</div>}
 
         {!loading && !error && domains.length === 0 && (
           <div className="text-white/70 text-center py-8">
