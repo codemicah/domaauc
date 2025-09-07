@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { currentDutchPrice } from '@/lib/price/dutch';
-import { formatEther } from 'viem';
+import { formatEther, formatUnits } from 'viem';
+import { SupportedCurrency } from '@/lib/doma/sdk';
 
 interface DutchPricePreviewProps {
   startPriceWei: string;
   reservePriceWei: string;
   startAt: string;
   endAt: string;
+  currency?: SupportedCurrency | null;
+  currencyLoading?: boolean;
   className?: string;
 }
 
@@ -17,6 +20,8 @@ export function DutchPricePreview({
   reservePriceWei,
   startAt,
   endAt,
+  currency,
+  currencyLoading = false,
   className = '',
 }: DutchPricePreviewProps): React.ReactElement {
   const [currentPrice, setCurrentPrice] = useState<bigint>(BigInt(0));
@@ -83,20 +88,23 @@ export function DutchPricePreview({
   };
 
   const pricePoints = generatePricePoints();
-  const maxPrice = Math.max(...pricePoints.map(p => p.price));
-  const minPrice = Math.min(...pricePoints.map(p => p.price));
-
+  const maxPrice = Math.max(...pricePoints.map((p) => p.price));
+  const minPrice = Math.min(...pricePoints.map((p) => p.price));
+  const ETH_DECIMAL_PLACES = 18;
   return (
     <div className={`glass-card ${className}`}>
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-white mb-2">Dutch Auction Preview</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">
+          Dutch Auction Preview
+        </h3>
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-blue-400">
-            {formatEther(currentPrice)} ETH
+            {parseFloat(formatUnits(currentPrice, ETH_DECIMAL_PLACES)).toFixed(
+              2
+            )}{' '}
+            {currency?.symbol}
           </div>
-          <div className="text-sm text-white/70">
-            {timeRemaining}
-          </div>
+          <div className="text-sm text-white/70">{timeRemaining}</div>
         </div>
       </div>
 
@@ -105,8 +113,18 @@ export function DutchPricePreview({
         <svg className="w-full h-full" viewBox="0 0 400 120">
           {/* Grid lines */}
           <defs>
-            <pattern id="grid" width="40" height="24" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
+            <pattern
+              id="grid"
+              width="40"
+              height="24"
+              patternUnits="userSpaceOnUse"
+            >
+              <path
+                d="M 40 0 L 0 0 0 24"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth="1"
+              />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
@@ -116,7 +134,9 @@ export function DutchPricePreview({
             d={pricePoints
               .map((point, index) => {
                 const x = (point.time / 100) * 400;
-                const y = 120 - ((point.price - minPrice) / (maxPrice - minPrice)) * 100;
+                const y =
+                  120 -
+                  ((point.price - minPrice) / (maxPrice - minPrice)) * 100;
                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
               })
               .join(' ')}
@@ -130,10 +150,17 @@ export function DutchPricePreview({
             const now = Date.now();
             const startMs = new Date(startAt).getTime();
             const endMs = new Date(endAt).getTime();
-            const progress = Math.max(0, Math.min(100, ((now - startMs) / (endMs - startMs)) * 100));
+            const progress = Math.max(
+              0,
+              Math.min(100, ((now - startMs) / (endMs - startMs)) * 100)
+            );
             const x = (progress / 100) * 400;
-            const currentPriceNum = Number(formatEther(currentPrice));
-            const y = 120 - ((currentPriceNum - minPrice) / (maxPrice - minPrice)) * 100;
+            const currentPriceNum = Number(
+              formatUnits(currentPrice, ETH_DECIMAL_PLACES)
+            );
+            const y =
+              120 -
+              ((currentPriceNum - minPrice) / (maxPrice - minPrice)) * 100;
 
             return (
               <circle
@@ -154,13 +181,19 @@ export function DutchPricePreview({
         <div>
           <div className="text-white/60">Starting Price</div>
           <div className="text-white font-medium">
-            {formatEther(BigInt(startPriceWei))} ETH
+            {parseFloat(
+              formatUnits(BigInt(startPriceWei), ETH_DECIMAL_PLACES)
+            ).toFixed(2)}{' '}
+            {currency?.symbol}
           </div>
         </div>
         <div>
           <div className="text-white/60">Reserve Price</div>
           <div className="text-white font-medium">
-            {formatEther(BigInt(reservePriceWei))} ETH
+            {parseFloat(
+              formatUnits(BigInt(reservePriceWei), ETH_DECIMAL_PLACES)
+            ).toFixed(2)}{' '}
+            {currency?.symbol}
           </div>
         </div>
       </div>

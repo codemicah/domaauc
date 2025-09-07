@@ -8,6 +8,9 @@ import { OfferForm } from '@/components/listing/offer-form';
 import { Leaderboard } from '@/components/listing/leaderboard';
 import { formatTimeRemaining } from '@/lib/utils/time';
 import { ListingMeta } from '@/lib/doma/types';
+import { supportedChains } from '@/lib/wagmi/config';
+import { getSupportedCurrencies, SupportedCurrency } from '@/lib/doma/sdk';
+import Header from '@/components/ui/header';
 
 export default function ListingDetailPage(): React.ReactElement {
   const params = useParams();
@@ -16,6 +19,8 @@ export default function ListingDetailPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [listingCurrency, setListingCurrency] = useState<SupportedCurrency>();
+  const [currencyLoading, setCurrencyLoading] = useState(false);
 
   const listingId = params.id as string;
 
@@ -26,19 +31,42 @@ export default function ListingDetailPage(): React.ReactElement {
         setError(null);
 
         const response = await fetch(`/api/listings?id=${listingId}`);
-        
+
         if (!response.ok) {
           throw new Error('Listing not found');
         }
 
         const data = await response.json();
-        const foundListing = data.listings.find((l: ListingMeta) => l._id === listingId);
-        
+        const foundListing = data.listings.find(
+          (l: ListingMeta) => l._id === listingId
+        );
+
         if (!foundListing) {
           throw new Error('Listing not found');
         }
 
         setListing(foundListing);
+
+        // Fetch currency information for the listing
+        try {
+          setCurrencyLoading(true);
+          const currencyData = await getSupportedCurrencies({
+            contractAddress: foundListing.tokenContract,
+            chainId: foundListing.chainId,
+          });
+
+          // Find the currency that matches the listing's currency
+          const currency = foundListing.startPrice?.currency;
+          const matchedCurrency = currencyData.currencies.find(
+            (c) => c.name.toLowerCase() === currency.toLowerCase()
+          );
+
+          setListingCurrency(matchedCurrency);
+        } catch (currencyErr) {
+          console.error('Failed to fetch currency info:', currencyErr);
+        } finally {
+          setCurrencyLoading(false);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load listing');
       } finally {
@@ -52,7 +80,7 @@ export default function ListingDetailPage(): React.ReactElement {
   }, [listingId]);
 
   const handleOfferSubmitted = (): void => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   if (loading) {
@@ -70,8 +98,12 @@ export default function ListingDetailPage(): React.ReactElement {
       <AuthGuard>
         <div className="min-h-screen flex items-center justify-center">
           <div className="glass-card text-center">
-            <h1 className="text-2xl font-bold text-white mb-4">Listing Not Found</h1>
-            <p className="text-white/70 mb-4">{error || 'The requested listing could not be found.'}</p>
+            <h1 className="text-2xl font-bold text-white mb-4">
+              Listing Not Found
+            </h1>
+            <p className="text-white/70 mb-4">
+              {error || 'The requested listing could not be found.'}
+            </p>
             <button
               onClick={() => router.push('/dashboard')}
               className="glass-button"
@@ -86,51 +118,60 @@ export default function ListingDetailPage(): React.ReactElement {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen p-6">
+      <Header />
+      <div className="min-h-screen p-4 sm:p-6 mt-20">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center gap-4 mb-4">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
               <button
-                onClick={() => router.push('/dashboard')}
-                className="glass-button px-4 py-2"
+                onClick={() => router.push('/listings')}
+                className="glass-button px-4 py-2 self-start"
               >
                 ← Back
               </button>
-              <div>
-                <h1 className="text-3xl font-bold text-white">
-                  Domain #{listing.tokenId}
+              <div className="min-w-0 flex-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
+                  {listing.domain || `Domain #${listing.tokenId}`}
                 </h1>
-                <p className="text-white/70">
-                  Contract: {listing.tokenContract}
-                </p>
+                <div className="text-white/70 text-sm sm:text-base">
+                  <div className="break-all">Token ID: {listing.tokenId}</div>
+                  <div className="break-all">
+                    Contract: {listing.tokenContract}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <div className="glass-card text-center">
-                <div className="text-2xl font-bold text-blue-400">
+                <div className="text-xl sm:text-2xl font-bold text-blue-400">
                   {listing.status}
                 </div>
                 <div className="text-white/60 text-sm">Status</div>
               </div>
-              
+
               <div className="glass-card text-center">
-                <div className="text-2xl font-bold text-white">
+                <div className="text-xl sm:text-2xl font-bold text-white">
                   {formatTimeRemaining(new Date(listing.endAt))}
                 </div>
                 <div className="text-white/60 text-sm">Time Remaining</div>
               </div>
-              
+
               <div className="glass-card text-center">
-                <div className="text-2xl font-bold text-green-400">
-                  {listing.chainId.split(':')[1] === '84532' ? 'Base Sepolia' : 'Sepolia'}
+                <div className="text-xl sm:text-2xl font-bold text-green-400">
+                  {
+                    supportedChains.find(
+                      (chain) =>
+                        chain.id == Number(listing.chainId.split(':')[1])
+                    )?.name
+                  }
                 </div>
                 <div className="text-white/60 text-sm">Network</div>
               </div>
-              
+
               <div className="glass-card text-center">
-                <div className="text-2xl font-bold text-purple-400">
+                <div className="text-xl sm:text-2xl font-bold text-purple-400 break-all">
                   {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
                 </div>
                 <div className="text-white/60 text-sm">Seller</div>
@@ -139,25 +180,32 @@ export default function ListingDetailPage(): React.ReactElement {
           </div>
 
           {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
             {/* Left Column */}
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0">
               <DutchPricePreview
                 startPriceWei={listing.startPriceWei}
                 reservePriceWei={listing.reservePriceWei}
                 startAt={listing.startAt}
                 endAt={listing.endAt}
+                currency={listingCurrency!}
+                currencyLoading={currencyLoading}
               />
-              
-              <OfferForm 
-                listing={listing} 
+
+              <OfferForm
+                listing={listing}
+                listingCurrency={listingCurrency!}
                 onOfferSubmitted={handleOfferSubmitted}
               />
             </div>
 
             {/* Right Column */}
-            <div>
-              <Leaderboard listingId={listing._id} refreshTrigger={refreshTrigger} />
+            <div className="min-w-0">
+              <Leaderboard
+                listingId={listing._id}
+                listingCurrency={listingCurrency!}
+                refreshTrigger={refreshTrigger}
+              />
             </div>
           </div>
         </div>

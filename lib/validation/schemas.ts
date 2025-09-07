@@ -3,19 +3,41 @@ import { z } from 'zod';
 export const chainIdSchema = z.string().regex(/^eip155:\d+$/);
 export const addressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 
-export const createListingSchema = z.object({
-  tokenContract: addressSchema,
-  tokenId: z.string().min(1),
-  chainId: chainIdSchema,
-  startPriceWei: z.string().regex(/^\d+$/),
-  reservePriceWei: z.string().regex(/^\d+$/),
-  startAt: z.string().datetime(),
-  endAt: z.string().datetime(),
+const priceInfoSchema = z.object({
+  amount: z.number().positive(),
+  currency: z.enum(['ETH', 'USDC', 'MATIC', 'AVAX', 'BNB']),
 });
+
+export const createListingSchema = z
+  .object({
+    domain: z.string().min(1),
+    tokenContract: addressSchema,
+    tokenId: z.string().min(1),
+    chainId: chainIdSchema,
+    startPrice: priceInfoSchema,
+    reservePrice: priceInfoSchema,
+    startPriceWei: z.string().regex(/^\d+$/),
+    reservePriceWei: z.string().regex(/^\d+$/),
+    startAt: z.string().datetime(),
+    endAt: z.string().datetime(),
+  })
+  .refine(
+    (data) => {
+      const durationMs =
+        new Date(data.endAt).getTime() - new Date(data.startAt).getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      return durationHours <= 180;
+    },
+    {
+      message: 'Duration cannot exceed 180 hours',
+      path: ['endAt'],
+    }
+  );
 
 export const placeOfferSchema = z.object({
   listingId: z.string().min(1),
   username: z.string().min(2).max(32),
+  price: priceInfoSchema,
   priceWei: z.string().regex(/^\d+$/),
 });
 

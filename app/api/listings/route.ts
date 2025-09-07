@@ -6,7 +6,6 @@ import { ListingMeta, ChainCAIP2 } from '@/lib/doma/types';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    console.log(body);
 
     // Validate seller address if provided
     if (!body.seller) {
@@ -34,9 +33,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const {
+      domain,
       tokenContract,
       tokenId,
       chainId,
+      startPrice,
+      reservePrice,
       startPriceWei,
       reservePriceWei,
       startAt,
@@ -47,6 +49,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (BigInt(reservePriceWei) > BigInt(startPriceWei)) {
       return NextResponse.json(
         { error: 'Reserve price must be less than or equal to start price' },
+        { status: 400 }
+      );
+    }
+
+    // Validate currency consistency
+    if (startPrice.currency !== reservePrice.currency) {
+      return NextResponse.json(
+        { error: 'Start price and reserve price must use the same currency' },
         { status: 400 }
       );
     }
@@ -70,11 +80,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Minimum duration check (1 hour)
+    // Duration checks
     const minDuration = 60 * 60 * 1000; // 1 hour in milliseconds
-    if (endTime.getTime() - startTime.getTime() < minDuration) {
+    const maxDuration = 180 * 60 * 60 * 1000; // 180 hours in milliseconds
+    const duration = endTime.getTime() - startTime.getTime();
+
+    if (duration < minDuration) {
       return NextResponse.json(
         { error: 'Auction duration must be at least 1 hour' },
+        { status: 400 }
+      );
+    }
+
+    if (duration > maxDuration) {
+      return NextResponse.json(
+        { error: 'Auction duration cannot exceed 180 hours' },
         { status: 400 }
       );
     }
@@ -99,10 +119,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const listingId = crypto.randomUUID();
     const listing: ListingMeta = {
       _id: listingId,
+      domain,
       tokenContract: tokenContract as `0x${string}`,
       tokenId,
       chainId: chainId as ChainCAIP2,
       seller: body.seller as `0x${string}`,
+      startPrice,
+      reservePrice,
       startPriceWei,
       reservePriceWei,
       startAt,

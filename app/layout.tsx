@@ -14,8 +14,49 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DomaAuc",
-  description: "DomaAuc - Tokenized Domain Dutch Auction Platform",
+  title: {
+    default: "DomaAuc - Domain Auction Platform",
+    template: "%s | DomaAuc"
+  },
+  description: "Trade tokenized domains through Dutch auctions on DomaAuc. Discover, bid, and sell domain NFTs with transparent pricing and secure blockchain transactions.",
+  keywords: ["domain auction", "NFT marketplace", "tokenized domains", "Dutch auction", "blockchain", "Web3", "domain trading"],
+  authors: [{ name: "DomaAuc Team" }],
+  creator: "DomaAuc",
+  publisher: "DomaAuc",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL("https://domaauc.com"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://domaauc.com",
+    title: "DomaAuc - Domain Auction Platform",
+    description: "Trade tokenized domains through Dutch auctions on DomaAuc. Discover, bid, and sell domain NFTs with transparent pricing and secure blockchain transactions.",
+    siteName: "DomaAuc",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DomaAuc - Domain Auction Platform",
+    description: "Trade tokenized domains through Dutch auctions on DomaAuc. Discover, bid, and sell domain NFTs with transparent pricing and secure blockchain transactions.",
+    creator: "@domaauc",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({

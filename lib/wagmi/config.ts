@@ -17,4 +17,4 @@ export const wagmiConfig = createConfig({
   },
 });
 
-export const supportedChains = [avalancheFuji, baseSepolia, sepolia] as const;
+export const supportedChains = [avalancheFuji, baseSepolia, sepolia];

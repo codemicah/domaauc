@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DomainToken } from '@/lib/doma/types';
 import { DomainPicker } from '@/components/ui/domain-picker';
 import { DutchPricePreview } from './dutch-price-preview';
 import { parseEther } from 'viem';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
+import {
+  getSupportedCurrencies,
+  getOrderbookFee,
+  type SupportedCurrency,
+  type MarketplaceFee,
+} from '@/lib/doma/sdk';
 
 export function CreateListingForm(): React.ReactElement {
   const router = useRouter();
@@ -17,10 +23,63 @@ export function CreateListingForm(): React.ReactElement {
   const [formData, setFormData] = useState({
     startPrice: '1.0',
     reservePrice: '0.1',
+    currency: 'ETH',
     duration: '24', // hours
   });
+  const [supportedCurrencies, setSupportedCurrencies] = useState<
+    SupportedCurrency[]
+  >([]);
+  const [marketplaceFees, setMarketplaceFees] = useState<MarketplaceFee[]>([]);
+  const [loadingCurrencies, setLoadingCurrencies] = useState(false);
+  const [loadingFees, setLoadingFees] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load supported currencies and fees when domain is selected
+  useEffect(() => {
+    if (selectedDomain) {
+      loadSupportedCurrencies();
+      loadMarketplaceFees();
+    }
+  }, [selectedDomain]);
+
+  const loadSupportedCurrencies = async () => {
+    if (!selectedDomain) return;
+
+    setLoadingCurrencies(true);
+    try {
+      const response = await getSupportedCurrencies({
+        contractAddress: selectedDomain.tokenContract,
+        chainId: selectedDomain.chainId,
+      });
+      setSupportedCurrencies(response.currencies);
+      const firstCurrency = response.currencies[0];
+      if (firstCurrency?.symbol) {
+        setFormData((prev) => ({ ...prev, currency: firstCurrency.symbol }));
+      }
+    } catch (error) {
+      console.error('Failed to load supported currencies:', error);
+    } finally {
+      setLoadingCurrencies(false);
+    }
+  };
+
+  const loadMarketplaceFees = async () => {
+    if (!selectedDomain) return;
+
+    setLoadingFees(true);
+    try {
+      const response = await getOrderbookFee({
+        contractAddress: selectedDomain.tokenContract,
+        chainId: selectedDomain.chainId,
+      });
+      setMarketplaceFees(response.marketplaceFees);
+    } catch (error) {
+      console.error('Failed to load marketplace fees:', error);
+    } finally {
+      setLoadingFees(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -48,6 +107,15 @@ export function CreateListingForm(): React.ReactElement {
           tokenContract: selectedDomain.tokenContract,
           tokenId: selectedDomain.tokenId,
           chainId: selectedDomain.chainId,
+          domain: selectedDomain.name,
+          startPrice: {
+            amount: parseFloat(formData.startPrice),
+            currency: formData.currency,
+          },
+          reservePrice: {
+            amount: parseFloat(formData.reservePrice),
+            currency: formData.currency,
+          },
           startPriceWei: parseEther(formData.startPrice).toString(),
           reservePriceWei: parseEther(formData.reservePrice).toString(),
           startAt: startAt.toISOString(),
@@ -89,19 +157,19 @@ export function CreateListingForm(): React.ReactElement {
   ).toISOString();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 p-4 sm:p-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-white mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
           Create Dutch Auction
         </h1>
-        <p className="text-white/70">
+        <p className="text-white/70 text-sm sm:text-base">
           List your tokenized domain for auction with declining price
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         {/* Left Column - Form */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Domain Selection */}
           <DomainPicker
             selectedDomain={selectedDomain}
@@ -110,46 +178,81 @@ export function CreateListingForm(): React.ReactElement {
 
           {/* Auction Parameters */}
           <div className="glass-card">
-            <h3 className="text-lg font-semibold text-white mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
               Auction Parameters
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-white/80 mb-2">
-                  Starting Price (ETH)
+                  Currency
                 </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  value={formData.startPrice}
+                <select
+                  value={formData.currency}
                   onChange={(e) =>
-                    handleInputChange('startPrice', e.target.value)
+                    handleInputChange('currency', e.target.value)
                   }
                   className="glass-input w-full"
-                  placeholder="1.0"
                   required
-                />
+                  disabled={loadingCurrencies}
+                >
+                  {loadingCurrencies ? (
+                    <option>Loading currencies...</option>
+                  ) : supportedCurrencies.length > 0 ? (
+                    supportedCurrencies.map((currency) => (
+                      <option key={currency.symbol} value={currency.symbol}>
+                        {currency.symbol} - {currency.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="ETH">ETH - Ethereum</option>
+                      <option value="USDC">USDC - USD Coin</option>
+                      <option value="MATIC">MATIC - Polygon</option>
+                      <option value="AVAX">AVAX - Avalanche</option>
+                      <option value="BNB">BNB - Binance Coin</option>
+                    </>
+                  )}
+                </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
-                  Reserve Price (ETH)
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0"
-                  max={formData.startPrice}
-                  value={formData.reservePrice}
-                  onChange={(e) =>
-                    handleInputChange('reservePrice', e.target.value)
-                  }
-                  className="glass-input w-full"
-                  placeholder="0.1"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Starting Price ({formData.currency})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={formData.startPrice}
+                    onChange={(e) =>
+                      handleInputChange('startPrice', e.target.value)
+                    }
+                    className="glass-input w-full"
+                    placeholder="1.0"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Reserve Price ({formData.currency})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    max={formData.startPrice}
+                    value={formData.reservePrice}
+                    onChange={(e) =>
+                      handleInputChange('reservePrice', e.target.value)
+                    }
+                    className="glass-input w-full"
+                    placeholder="0.1"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
@@ -170,9 +273,53 @@ export function CreateListingForm(): React.ReactElement {
                   <option value="24">24 hours</option>
                   <option value="48">48 hours</option>
                   <option value="72">72 hours</option>
-                  <option value="168">1 week</option>
+                  <option value="168">1 week (168 hours)</option>
+                  <option value="180">180 hours (max)</option>
                 </select>
               </div>
+
+              {/* Fees Breakdown */}
+              {selectedDomain && marketplaceFees.length > 0 && (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-white/80 mb-3">
+                    Fees
+                  </h4>
+                  <div className="space-y-2">
+                    {marketplaceFees.map((fee, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center text-sm"
+                      >
+                        <span className="text-white/70 capitalize">
+                          {fee.feeType || 'Fee'}
+                        </span>
+                        <span className="text-white">
+                          {(fee.basisPoints / 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t border-white/10 pt-2 mt-2">
+                      <div className="flex justify-between items-center text-sm font-medium">
+                        <span className="text-white/80">Total Fees</span>
+                        <span className="text-white">
+                          {(
+                            marketplaceFees.reduce(
+                              (sum, fee) => sum + fee.basisPoints,
+                              0
+                            ) / 100
+                          ).toFixed(1)}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {loadingFees && (
+                    <div className="text-xs text-white/50 mt-2">
+                      Loading fees...
+                    </div>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg p-3">
@@ -183,7 +330,7 @@ export function CreateListingForm(): React.ReactElement {
               <button
                 type="submit"
                 disabled={!isValidForm || isSubmitting}
-                className="glass-button w-full disabled:opacity-50"
+                className="glass-button w-full disabled:opacity-50 text-sm sm:text-base py-3"
               >
                 {isSubmitting
                   ? 'Creating Listing...'
@@ -194,14 +341,14 @@ export function CreateListingForm(): React.ReactElement {
         </div>
 
         {/* Right Column - Preview */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {selectedDomain && (
             <div className="glass-card">
-              <h3 className="text-lg font-semibold text-white mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-white mb-4">
                 Selected Domain
               </h3>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-lg bg-white/5 flex items-center justify-center">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                   {selectedDomain.image ? (
                     <img
                       src={selectedDomain.image}
@@ -210,7 +357,7 @@ export function CreateListingForm(): React.ReactElement {
                     />
                   ) : (
                     <svg
-                      className="w-8 h-8 text-white/60"
+                      className="w-6 h-6 sm:w-8 sm:h-8 text-white/60"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -218,11 +365,11 @@ export function CreateListingForm(): React.ReactElement {
                     </svg>
                   )}
                 </div>
-                <div>
-                  <h4 className="font-semibold text-white">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-semibold text-white truncate">
                     {selectedDomain.name}
                   </h4>
-                  <p className="text-sm text-white/60">
+                  <p className="text-xs sm:text-sm text-white/60 truncate">
                     Token ID: {selectedDomain.tokenId}
                   </p>
                 </div>

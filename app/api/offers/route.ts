@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getOffersCollection, getListingsCollection } from '@/lib/db/mongo';
 import { placeOfferSchema, addressSchema } from '@/lib/validation/schemas';
 import { OfferMeta } from '@/lib/doma/types';
-import { readContract } from '@wagmi/core';
-import { erc20Abi } from 'viem';
-import { wagmiConfig } from '@/lib/wagmi/config';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json();
-    
-    // Validate bidder address if provided
+
     if (!body.bidder) {
       return NextResponse.json(
         { error: 'Bidder address is required' },
@@ -40,7 +36,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Validate username format
     if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
       return NextResponse.json(
-        { error: 'Username can only contain letters, numbers, underscores, and hyphens' },
+        {
+          error:
+            'Username can only contain letters, numbers, underscores, and hyphens',
+        },
         { status: 400 }
       );
     }
@@ -49,10 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const listing = await listings.findOne({ _id: listingId });
 
     if (!listing) {
-      return NextResponse.json(
-        { error: 'Listing not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
     }
 
     if (listing.status !== 'ACTIVE') {
@@ -82,15 +78,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Validate minimum offer amount (must be at least reserve price)
-    if (BigInt(priceWei) < BigInt(listing.reservePriceWei)) {
-      return NextResponse.json(
-        { error: 'Offer must be at least the reserve price' },
-        { status: 400 }
-      );
-    }
+    // if (BigInt(priceWei) < BigInt(listing.reservePriceWei)) {
+    //   return NextResponse.json(
+    //     { error: 'Offer must be at least the reserve price' },
+    //     { status: 400 }
+    //   );
+    // }
 
     const offers = await getOffersCollection();
-    
+
     // Check for existing active offer from this bidder for this listing
     const existingOffer = await offers.findOne({
       listingId,
@@ -100,7 +96,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (existingOffer) {
       return NextResponse.json(
-        { error: 'You already have an active offer for this listing. Cancel it first to place a new one.' },
+        {
+          error:
+            'You already have an active offer for this listing. Cancel it first to place a new one.',
+        },
         { status: 409 }
       );
     }
@@ -132,16 +131,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       priceWei,
       createdAt: new Date().toISOString(),
       status: 'ACTIVE',
+      price: body.price,
     };
 
     await offers.insertOne(offer);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       offerId: offer._id,
-      offer 
+      offer,
     });
-
   } catch (error) {
     console.error('Failed to create offer:', error);
     return NextResponse.json(
@@ -161,7 +160,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const offers = await getOffersCollection();
-    
+
     const filter: Record<string, unknown> = {};
     if (listingId) filter.listingId = listingId;
     if (bidder) filter.bidder = bidder.toLowerCase();
@@ -185,7 +184,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         hasMore: offset + limit < total,
       },
     });
-
   } catch (error) {
     console.error('Failed to fetch offers:', error);
     return NextResponse.json(

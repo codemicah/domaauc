@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatEther } from 'viem';
+import { formatEther, formatUnits } from 'viem';
 import { formatDistanceToNow } from 'date-fns';
+import { SupportedCurrency } from '@/lib/doma/sdk';
 
 interface LeaderboardEntry {
   rank: number;
@@ -16,10 +17,15 @@ interface LeaderboardEntry {
 
 interface LeaderboardProps {
   listingId: string;
+  listingCurrency?: SupportedCurrency | null;
   refreshTrigger?: number;
 }
 
-export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps): React.ReactElement {
+export function Leaderboard({
+  listingId,
+  listingCurrency,
+  refreshTrigger = 0,
+}: LeaderboardProps): React.ReactElement {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +37,7 @@ export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps)
         setError(null);
 
         const response = await fetch(`/api/listings/${listingId}/leaderboard`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch leaderboard');
         }
@@ -39,7 +45,9 @@ export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps)
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
+        setError(
+          err instanceof Error ? err.message : 'Failed to load leaderboard'
+        );
       } finally {
         setLoading(false);
       }
@@ -63,9 +71,7 @@ export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps)
     return (
       <div className="glass-card">
         <h3 className="text-lg font-semibold text-white mb-4">Leaderboard</h3>
-        <div className="text-red-400 text-center py-4">
-          {error}
-        </div>
+        <div className="text-red-400 text-center py-4">{error}</div>
       </div>
     );
   }
@@ -101,8 +107,8 @@ export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps)
                       entry.isTopOffer
                         ? 'bg-yellow-500 text-black'
                         : entry.rank <= 3
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white/20 text-white'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white/20 text-white'
                     }`}
                   >
                     {entry.rank}
@@ -125,13 +131,20 @@ export function Leaderboard({ listingId, refreshTrigger = 0 }: LeaderboardProps)
                 </div>
 
                 <div className="text-right">
-                  <div className={`font-bold ${
-                    entry.isTopOffer ? 'text-yellow-400' : 'text-white'
-                  }`}>
-                    {formatEther(BigInt(entry.priceWei))} ETH
+                  <div
+                    className={`font-bold ${
+                      entry.isTopOffer ? 'text-yellow-400' : 'text-white'
+                    }`}
+                  >
+                    {listingCurrency 
+                      ? parseFloat(formatUnits(BigInt(entry.priceWei), listingCurrency.decimals)).toFixed(2)
+                      : parseFloat(formatEther(BigInt(entry.priceWei))).toFixed(2)
+                    } {listingCurrency?.symbol || 'ETH'}
                   </div>
                   <div className="text-xs text-white/50">
-                    {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(entry.createdAt), {
+                      addSuffix: true,
+                    })}
                   </div>
                 </div>
               </div>
