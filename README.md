@@ -1,8 +1,8 @@
-# DomaAuc 🏆
+# DomaAuc
 
 ## _DomainFi Challenge Winner - Revolutionizing Domain Liquidity_
 
-> **The Future of Domain Trading**: A production-ready marketplace that transforms how tokenized domains are bought and sold through intelligent Dutch auctions powered by the Doma Protocol.
+> **The Future of Domain Trading**: A marketplace that transforms how tokenized domains are bought and sold through intelligent Dutch auctions powered by the Doma Protocol.
 
 ---
 
