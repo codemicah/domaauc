@@ -2,17 +2,14 @@ import { WalletClient } from 'viem';
 import { clientConfig } from '@/lib/config/env';
 import { ChainCAIP2 } from './types';
 import { supportedChains } from '../wagmi/config';
-
-export interface SupportedCurrency {
-  contractAddress: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  type: 'ALL' | 'LISTING_ONLY';
-}
-
+import {
+  CurrencyToken,
+  DomaOrderbookSDK,
+  OnProgressCallback,
+  OrderbookType,
+} from '@doma-protocol/orderbook-sdk';
 export interface GetSupportedCurrenciesResponse {
-  currencies: SupportedCurrency[];
+  currencies: CurrencyToken[];
 }
 
 export interface MarketplaceFee {
@@ -39,33 +36,33 @@ export interface CreateOfferResult {
   error?: string;
 }
 
-let domaSDK: any = null;
+let domaSDK: {
+  client: DomaOrderbookSDK;
+  OrderbookType: typeof OrderbookType;
+  viemToEthersSigner: any;
+};
 let sdkInitialized = false;
+const DOMA_SOURCE = 'domaauc';
 
 async function initializeDomaSDK() {
   if (sdkInitialized) return domaSDK;
 
-  try {
-    const sdkModule = await import('@doma-protocol/orderbook-sdk');
-    const config = {
-      apiClientOptions: {
-        baseUrl: clientConfig.NEXT_PUBLIC_DOMA_API_URL,
-        defaultHeaders: { 'Api-Key': clientConfig.NEXT_PUBLIC_DOMA_API_KEY },
-      },
-      source: 'domaauc',
-      chains: supportedChains,
-    };
-    const client = sdkModule.createDomaOrderbookClient(config);
+  const sdkModule = await import('@doma-protocol/orderbook-sdk');
+  const config = {
+    apiClientOptions: {
+      baseUrl: clientConfig.NEXT_PUBLIC_DOMA_API_URL,
+      defaultHeaders: { 'Api-Key': clientConfig.NEXT_PUBLIC_DOMA_API_KEY },
+    },
+    source: DOMA_SOURCE,
+    chains: supportedChains,
+  };
+  const client = sdkModule.createDomaOrderbookClient(config);
 
-    domaSDK = {
-      client,
-      OrderbookType: sdkModule.OrderbookType,
-      viemToEthersSigner: sdkModule.viemToEthersSigner,
-    };
-  } catch (error) {
-    console.warn('Doma SDK initialization failed, using fallback:', error);
-    domaSDK = null;
-  }
+  domaSDK = {
+    client,
+    OrderbookType: sdkModule.OrderbookType,
+    viemToEthersSigner: sdkModule.viemToEthersSigner,
+  };
 
   sdkInitialized = true;
   return domaSDK;
@@ -74,13 +71,13 @@ async function initializeDomaSDK() {
 export async function getSupportedCurrencies(params: {
   contractAddress: `0x${string}`;
   chainId: ChainCAIP2;
-}): Promise<GetSupportedCurrenciesResponse> {
+}) {
   const sdk = await initializeDomaSDK();
 
   return await sdk.client.getSupportedCurrencies({
     chainId: params.chainId,
     contractAddress: params.contractAddress,
-    orderbook: 'DOMA',
+    orderbook: OrderbookType.DOMA,
   });
 }
 
@@ -91,7 +88,7 @@ export async function getOrderbookFee(params: {
   const sdk = await initializeDomaSDK();
 
   return await sdk.client.getOrderbookFee({
-    orderbook: 'DOMA',
+    orderbook: OrderbookType.DOMA,
     chainId: params.chainId,
     contractAddress: params.contractAddress,
   });
@@ -115,55 +112,31 @@ export async function createOffer(params: {
   currency: string;
   chainId: ChainCAIP2;
   walletClient: WalletClient;
-  onProgress?: (step: string, progress: number) => void;
-}): Promise<CreateOfferResult> {
+  onProgress: OnProgressCallback;
+}) {
   const sdk = await initializeDomaSDK();
 
-  if (sdk?.client && sdk?.viemToEthersSigner) {
-    try {
-      const signer = sdk.viemToEthersSigner(
-        params.walletClient,
-        params.chainId
-      );
+  const signer = sdk.viemToEthersSigner(params.walletClient, params.chainId);
 
-      const result = await sdk.client.createOffer({
-        orderbook: 'DOMA',
-        chainId: params.chainId,
-        parameters: {
-          // This will be populated by the SDK with proper Seaport order structure
+  const result = await sdk.client.createOffer({
+    chainId: params.chainId,
+    params: {
+      source: DOMA_SOURCE,
+      orderbook: OrderbookType.DOMA,
+      items: [
+        {
           contract: params.contractAddress,
           tokenId: params.tokenId,
           price: params.price,
-          currency: params.currency,
+          currencyContractAddress: params.currency,
         },
-        signer,
-        onProgress: params.onProgress || (() => {}),
-      });
+      ],
+    },
+    signer,
+    onProgress: params.onProgress,
+  });
 
-      return {
-        success: true,
-        orderId: result.orderId,
-        transactionHash: result.transactionHash,
-      };
-    } catch (error) {
-      console.error('Failed to create offer via SDK:', error);
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }
-
-  // Fallback implementation for development
-  console.warn(
-    'Using fallback offer creation (no actual blockchain transaction)'
-  );
-  return {
-    success: true,
-    orderId: `fallback-${Date.now()}`,
-    transactionHash: `0x${'0'.repeat(64)}`,
-  };
+  return result;
 }
 
 export async function createListing(params: {
@@ -173,55 +146,31 @@ export async function createListing(params: {
   currency: string;
   chainId: ChainCAIP2;
   walletClient: WalletClient;
-  onProgress?: (step: string, progress: number) => void;
-}): Promise<CreateOfferResult> {
+  onProgress: OnProgressCallback;
+}) {
   const sdk = await initializeDomaSDK();
 
-  if (sdk?.client && sdk?.viemToEthersSigner) {
-    try {
-      const signer = sdk.viemToEthersSigner(
-        params.walletClient,
-        params.chainId
-      );
+  const signer = sdk.viemToEthersSigner(params.walletClient, params.chainId);
 
-      const result = await sdk.client.createListing({
-        orderbook: 'DOMA',
-        chainId: params.chainId,
-        parameters: {
-          // This will be populated by the SDK with proper Seaport order structure
+  const result = await sdk.client.createListing({
+    chainId: params.chainId,
+    params: {
+      orderbook: OrderbookType.DOMA,
+      source: DOMA_SOURCE,
+      items: [
+        {
           contract: params.contractAddress,
           tokenId: params.tokenId,
           price: params.price,
-          currency: params.currency,
+          currencyContractAddress: params.currency,
         },
-        signer,
-        onProgress: params.onProgress || (() => {}),
-      });
+      ],
+    },
+    signer,
+    onProgress: params.onProgress || (() => {}),
+  });
 
-      return {
-        success: true,
-        orderId: result.orderId,
-        transactionHash: result.transactionHash,
-      };
-    } catch (error) {
-      console.error('Failed to create listing via SDK:', error);
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }
-
-  // Fallback implementation for development
-  console.warn(
-    'Using fallback listing creation (no actual blockchain transaction)'
-  );
-  return {
-    success: true,
-    orderId: `fallback-${Date.now()}`,
-    transactionHash: `0x${'0'.repeat(64)}`,
-  };
+  return result;
 }
 
 // Additional order operations
@@ -229,72 +178,40 @@ export async function acceptOffer(params: {
   orderId: string;
   chainId: ChainCAIP2;
   walletClient: WalletClient;
-  onProgress?: (step: string, progress: number) => void;
+  onProgress: OnProgressCallback;
 }): Promise<{ transactionHash: string }> {
   const sdk = await initializeDomaSDK();
 
-  if (sdk?.client && sdk?.viemToEthersSigner) {
-    try {
-      const signer = sdk.viemToEthersSigner(
-        params.walletClient,
-        params.chainId
-      );
+  const signer = sdk.viemToEthersSigner(params.walletClient, params.chainId);
 
-      const result = await sdk.client.acceptOffer({
-        orderId: params.orderId,
-        signer,
-        chainId: params.chainId,
-        onProgress: params.onProgress || (() => {}),
-      });
+  const result = await sdk.client.acceptOffer({
+    params: { orderId: params.orderId },
+    signer,
+    chainId: params.chainId,
+    onProgress: params.onProgress,
+  });
 
-      return { transactionHash: result.transactionHash };
-    } catch (error) {
-      console.error('Failed to accept offer via SDK:', error);
-      throw error;
-    }
-  }
-
-  // Fallback implementation
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    transactionHash: `0x${crypto.randomUUID().replace(/-/g, '')}`,
-  };
+  return { transactionHash: result.transactionHash };
 }
 
 export async function cancelOffer(params: {
   orderId: string;
   chainId: ChainCAIP2;
   walletClient: WalletClient;
-  onProgress?: (step: string, progress: number) => void;
-}): Promise<{ transactionHash: string }> {
+  onProgress: OnProgressCallback;
+}) {
   const sdk = await initializeDomaSDK();
 
-  if (sdk?.client && sdk?.viemToEthersSigner) {
-    try {
-      const signer = sdk.viemToEthersSigner(
-        params.walletClient,
-        params.chainId
-      );
+  const signer = sdk.viemToEthersSigner(params.walletClient, params.chainId);
 
-      const result = await sdk.client.cancelOffer({
-        orderId: params.orderId,
-        signer,
-        chainId: params.chainId,
-        onProgress: params.onProgress || (() => {}),
-      });
+  const result = await sdk.client.cancelOffer({
+    params: { orderId: params.orderId },
+    signer,
+    chainId: params.chainId,
+    onProgress: params.onProgress,
+  });
 
-      return { transactionHash: result.transactionHash };
-    } catch (error) {
-      console.error('Failed to cancel offer via SDK:', error);
-      throw error;
-    }
-  }
-
-  // Fallback implementation
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    transactionHash: `0x${crypto.randomUUID().replace(/-/g, '')}`,
-  };
+  return result;
 }
 
 export async function buyListing(params: {
@@ -302,35 +219,18 @@ export async function buyListing(params: {
   chainId: ChainCAIP2;
   fulFillerAddress: `0x${string}`;
   walletClient: WalletClient;
-  onProgress?: (step: string, progress: number) => void;
-}): Promise<{ transactionHash: string }> {
+  onProgress: OnProgressCallback;
+}) {
   const sdk = await initializeDomaSDK();
 
-  if (sdk?.client && sdk?.viemToEthersSigner) {
-    try {
-      const signer = sdk.viemToEthersSigner(
-        params.walletClient,
-        params.chainId
-      );
+  const signer = sdk.viemToEthersSigner(params.walletClient, params.chainId);
 
-      const result = await sdk.client.buyListing({
-        orderId: params.orderId,
-        fulFillerAddress: params.fulFillerAddress,
-        signer,
-        chainId: params.chainId,
-        onProgress: params.onProgress || (() => {}),
-      });
+  const result = await sdk.client.buyListing({
+    params: { orderId: params.orderId },
+    signer,
+    chainId: params.chainId,
+    onProgress: params.onProgress,
+  });
 
-      return { transactionHash: result.transactionHash };
-    } catch (error) {
-      console.error('Failed to buy listing via SDK:', error);
-      throw error;
-    }
-  }
-
-  // Fallback implementation
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  return {
-    transactionHash: `0x${crypto.randomUUID().replace(/-/g, '')}`,
-  };
+  return { transactionHash: result.transactionHash };
 }

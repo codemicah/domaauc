@@ -13,6 +13,7 @@ import {
   type SupportedCurrency,
   type MarketplaceFee,
 } from '@/lib/doma/sdk';
+import Image from 'next/image';
 
 export function CreateListingForm(): React.ReactElement {
   const router = useRouter();
@@ -41,6 +42,7 @@ export function CreateListingForm(): React.ReactElement {
       loadSupportedCurrencies();
       loadMarketplaceFees();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDomain]);
 
   const loadSupportedCurrencies = async () => {
@@ -350,7 +352,7 @@ export function CreateListingForm(): React.ReactElement {
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
                   {selectedDomain.image ? (
-                    <img
+                    <Image
                       src={selectedDomain.image}
                       alt={selectedDomain.name}
                       className="w-full h-full object-cover rounded-lg"

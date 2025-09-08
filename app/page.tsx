@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { ConnectButton } from '@/components/wallet/connect-button';
 import { Metadata } from 'next';
 import Header from '@/components/ui/header';
 

@@ -21,7 +21,6 @@ export function DutchPricePreview({
   startAt,
   endAt,
   currency,
-  currencyLoading = false,
   className = '',
 }: DutchPricePreviewProps): React.ReactElement {
   const [currentPrice, setCurrentPrice] = useState<bigint>(BigInt(0));

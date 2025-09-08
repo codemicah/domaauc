@@ -1,6 +1,7 @@
 'use client';
 
 import { DomainToken } from '@/lib/doma/types';
+import Image from 'next/image';
 import { useState } from 'react';
 
 interface DomainCardProps {
@@ -9,7 +10,11 @@ interface DomainCardProps {
   onSelect: (domain: DomainToken) => void;
 }
 
-export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): React.ReactElement {
+export function DomainCard({
+  domain,
+  isSelected,
+  onSelect,
+}: DomainCardProps): React.ReactElement {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -21,7 +26,7 @@ export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): R
     >
       <div className="aspect-square mb-4 rounded-lg overflow-hidden bg-white/5">
         {domain.image && !imageError ? (
-          <img
+          <Image
             src={domain.image}
             alt={domain.name}
             className="w-full h-full object-cover"
@@ -45,17 +50,17 @@ export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): R
           </div>
         )}
       </div>
-      
+
       <h3 className="text-lg font-semibold text-white mb-2 truncate">
         {domain.name}
       </h3>
-      
+
       {domain.description && (
         <p className="text-sm text-white/70 mb-3 line-clamp-2">
           {domain.description}
         </p>
       )}
-      
+
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-white/50">
           <span className="truncate flex-1 mr-2">Token ID:</span>
@@ -71,8 +76,18 @@ export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): R
               className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
               title="Copy Token ID"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
               </svg>
             </button>
           </div>
@@ -81,7 +96,8 @@ export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): R
           <span className="truncate flex-1 mr-2">Contract:</span>
           <div className="flex items-center gap-1 min-w-0">
             <span className="truncate" title={domain.tokenContract}>
-              {domain.tokenContract.slice(0, 6)}...{domain.tokenContract.slice(-4)}
+              {domain.tokenContract.slice(0, 6)}...
+              {domain.tokenContract.slice(-4)}
             </span>
             <button
               onClick={(e) => {
@@ -91,8 +107,18 @@ export function DomainCard({ domain, isSelected, onSelect }: DomainCardProps): R
               className="p-1 hover:bg-white/10 rounded transition-colors flex-shrink-0"
               title="Copy Contract Address"
             >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
               </svg>
             </button>
           </div>

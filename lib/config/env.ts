@@ -1,4 +1,9 @@
-import { clientEnvSchema, serverEnvSchema, type ClientEnvConfig, type ServerEnvConfig } from '@/lib/validation/schemas';
+import {
+  clientEnvSchema,
+  serverEnvSchema,
+  type ClientEnvConfig,
+  type ServerEnvConfig,
+} from '@/lib/validation/schemas';
 
 // Client-side environment config (only NEXT_PUBLIC_ variables)
 function getClientEnvConfig(): ClientEnvConfig {
@@ -11,12 +16,17 @@ function getClientEnvConfig(): ClientEnvConfig {
   };
 
   const result = clientEnvSchema.safeParse(env);
-  
+
   if (!result.success) {
-    console.error('Client environment validation failed:', result.error.format());
-    throw new Error(`Client environment validation failed: ${JSON.stringify(result.error.errors, null, 2)}`);
+    console.error(
+      'Client environment validation failed:',
+      result.error.format()
+    );
+    throw new Error(
+      `Client environment validation failed: ${JSON.stringify(result.error.errors, null, 2)}`
+    );
   }
-  
+
   return result.data;
 }
 
@@ -32,12 +42,17 @@ function getServerEnvConfig(): ServerEnvConfig {
   };
 
   const result = serverEnvSchema.safeParse(env);
-  
+
   if (!result.success) {
-    console.error('Server environment validation failed:', result.error.format());
-    throw new Error(`Server environment validation failed: ${JSON.stringify(result.error.errors, null, 2)}`);
+    console.error(
+      'Server environment validation failed:',
+      result.error.format()
+    );
+    throw new Error(
+      `Server environment validation failed: ${JSON.stringify(result.error.errors, null, 2)}`
+    );
   }
-  
+
   return result.data;
 }
 
@@ -53,5 +68,7 @@ export const getServerConfig = (): ServerEnvConfig => {
 };
 
 export function getSupportedChains(): string[] {
-  return clientConfig.NEXT_PUBLIC_SUPPORTED_CHAINS.split(',').map((chain: string) => chain.trim());
+  return clientConfig.NEXT_PUBLIC_SUPPORTED_CHAINS.split(',').map(
+    (chain: string) => chain.trim()
+  );
 }

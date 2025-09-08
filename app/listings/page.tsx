@@ -26,6 +26,58 @@ export default function ListingsPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
+    const applyFiltersAndSort = () => {
+      let filtered = [...listings];
+
+      // Search by domain name (token ID)
+      if (searchQuery) {
+        filtered = filtered.filter((listing) =>
+          listing.tokenId.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+
+      // Filter by mine
+      if (filterMine && address) {
+        filtered = filtered.filter(
+          (listing) => listing.seller.toLowerCase() === address.toLowerCase()
+        );
+      }
+
+      // Filter by chain
+      if (selectedChain !== 'all') {
+        filtered = filtered.filter(
+          (listing) => listing.chainId === selectedChain
+        );
+      }
+
+      // Sort
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'expiring':
+            return new Date(a.endAt).getTime() - new Date(b.endAt).getTime();
+          case 'price-high':
+            const priceA =
+              a.startPrice?.amount ||
+              parseFloat(formatEther(BigInt(a.startPriceWei)));
+            const priceB =
+              b.startPrice?.amount ||
+              parseFloat(formatEther(BigInt(b.startPriceWei)));
+            return priceB - priceA;
+          case 'price-low':
+            const priceLowA =
+              a.startPrice?.amount ||
+              parseFloat(formatEther(BigInt(a.startPriceWei)));
+            const priceLowB =
+              b.startPrice?.amount ||
+              parseFloat(formatEther(BigInt(b.startPriceWei)));
+            return priceLowA - priceLowB;
+          default:
+            return 0;
+        }
+      });
+
+      setFilteredListings(filtered);
+    };
     applyFiltersAndSort();
   }, [listings, searchQuery, filterMine, selectedChain, sortBy, address]);
 
@@ -43,59 +95,6 @@ export default function ListingsPage(): React.ReactElement {
     } finally {
       setLoading(false);
     }
-  };
-
-  const applyFiltersAndSort = () => {
-    let filtered = [...listings];
-
-    // Search by domain name (token ID)
-    if (searchQuery) {
-      filtered = filtered.filter((listing) =>
-        listing.tokenId.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filter by mine
-    if (filterMine && address) {
-      filtered = filtered.filter(
-        (listing) => listing.seller.toLowerCase() === address.toLowerCase()
-      );
-    }
-
-    // Filter by chain
-    if (selectedChain !== 'all') {
-      filtered = filtered.filter(
-        (listing) => listing.chainId === selectedChain
-      );
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'expiring':
-          return new Date(a.endAt).getTime() - new Date(b.endAt).getTime();
-        case 'price-high':
-          const priceA =
-            a.startPrice?.amount ||
-            parseFloat(formatEther(BigInt(a.startPriceWei)));
-          const priceB =
-            b.startPrice?.amount ||
-            parseFloat(formatEther(BigInt(b.startPriceWei)));
-          return priceB - priceA;
-        case 'price-low':
-          const priceLowA =
-            a.startPrice?.amount ||
-            parseFloat(formatEther(BigInt(a.startPriceWei)));
-          const priceLowB =
-            b.startPrice?.amount ||
-            parseFloat(formatEther(BigInt(b.startPriceWei)));
-          return priceLowA - priceLowB;
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredListings(filtered);
   };
 
   const getUniqueChains = () => {

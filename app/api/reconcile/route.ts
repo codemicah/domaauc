@@ -1,25 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getListingsCollection, getOffersCollection } from '@/lib/db/mongo';
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   try {
     const now = new Date();
     const listings = await getListingsCollection();
     const offers = await getOffersCollection();
 
     // Find expired listings that are still marked as ACTIVE
-    const expiredListings = await listings.find({
-      status: 'ACTIVE',
-      endAt: { $lt: now.toISOString() }
-    }).toArray();
+    const expiredListings = await listings
+      .find({
+        status: 'ACTIVE',
+        endAt: { $lt: now.toISOString() },
+      })
+      .toArray();
 
     let updatedListings = 0;
     let updatedOffers = 0;
 
     // Update expired listings to EXPIRED status
     if (expiredListings.length > 0) {
-      const expiredListingIds = expiredListings.map(l => l._id);
-      
+      const expiredListingIds = expiredListings.map((l) => l._id);
+
       const listingUpdateResult = await listings.updateMany(
         { _id: { $in: expiredListingIds } },
         {
@@ -33,9 +35,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       // Also expire all active offers for these expired listings
       const offerUpdateResult = await offers.updateMany(
-        { 
+        {
           listingId: { $in: expiredListingIds },
-          status: 'ACTIVE'
+          status: 'ACTIVE',
         },
         {
           $set: {
@@ -49,26 +51,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Find offers that have expired based on their listing's end time
     // This catches any offers that might have been missed in the above update
-    const additionalExpiredOffers = await offers.aggregate([
-      {
-        $lookup: {
-          from: 'listings',
-          localField: 'listingId',
-          foreignField: '_id',
-          as: 'listing'
-        }
-      },
-      {
-        $match: {
-          status: 'ACTIVE',
-          'listing.endAt': { $lt: now.toISOString() }
-        }
-      }
-    ]).toArray();
+    const additionalExpiredOffers = await offers
+      .aggregate([
+        {
+          $lookup: {
+            from: 'listings',
+            localField: 'listingId',
+            foreignField: '_id',
+            as: 'listing',
+          },
+        },
+        {
+          $match: {
+            status: 'ACTIVE',
+            'listing.endAt': { $lt: now.toISOString() },
+          },
+        },
+      ])
+      .toArray();
 
     if (additionalExpiredOffers.length > 0) {
-      const additionalOfferIds = additionalExpiredOffers.map(o => o._id);
-      
+      const additionalOfferIds = additionalExpiredOffers.map((o) => o._id);
+
       const additionalOfferUpdateResult = await offers.updateMany(
         { _id: { $in: additionalOfferIds } },
         {
@@ -90,7 +94,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         processedAt: now.toISOString(),
       },
     });
-
   } catch (error) {
     console.error('Reconciliation failed:', error);
     return NextResponse.json(
@@ -108,28 +111,32 @@ export async function GET(): Promise<NextResponse> {
     const offers = await getOffersCollection();
 
     // Find expired listings that are still marked as ACTIVE
-    const expiredListings = await listings.find({
-      status: 'ACTIVE',
-      endAt: { $lt: now.toISOString() }
-    }).toArray();
+    const expiredListings = await listings
+      .find({
+        status: 'ACTIVE',
+        endAt: { $lt: now.toISOString() },
+      })
+      .toArray();
 
     // Find offers that would be expired
-    const expiredOffers = await offers.aggregate([
-      {
-        $lookup: {
-          from: 'listings',
-          localField: 'listingId',
-          foreignField: '_id',
-          as: 'listing'
-        }
-      },
-      {
-        $match: {
-          status: 'ACTIVE',
-          'listing.endAt': { $lt: now.toISOString() }
-        }
-      }
-    ]).toArray();
+    const expiredOffers = await offers
+      .aggregate([
+        {
+          $lookup: {
+            from: 'listings',
+            localField: 'listingId',
+            foreignField: '_id',
+            as: 'listing',
+          },
+        },
+        {
+          $match: {
+            status: 'ACTIVE',
+            'listing.endAt': { $lt: now.toISOString() },
+          },
+        },
+      ])
+      .toArray();
 
     return NextResponse.json({
       preview: true,
@@ -139,20 +146,19 @@ export async function GET(): Promise<NextResponse> {
         expiredOffersCount: expiredOffers.length,
         checkedAt: now.toISOString(),
       },
-      expiredListings: expiredListings.map(l => ({
+      expiredListings: expiredListings.map((l) => ({
         id: l._id,
         tokenContract: l.tokenContract,
         tokenId: l.tokenId,
         endAt: l.endAt,
       })),
-      expiredOffers: expiredOffers.map(o => ({
+      expiredOffers: expiredOffers.map((o) => ({
         id: o._id,
         listingId: o.listingId,
         bidder: o.bidder,
         priceWei: o.priceWei,
       })),
     });
-
   } catch (error) {
     console.error('Reconciliation preview failed:', error);
     return NextResponse.json(
