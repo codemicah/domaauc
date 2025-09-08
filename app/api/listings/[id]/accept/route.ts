@@ -3,16 +3,17 @@ import { getListingsCollection, getOffersCollection } from '@/lib/db/mongo';
 import { acceptOfferSchema, addressSchema } from '@/lib/validation/schemas';
 
 interface RouteParams {
-  params: {
-    id: string;
-  };
+  id: string;
 }
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<NextResponse> {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<RouteParams> }
+): Promise<NextResponse> {
   try {
-    const { id: listingId } = params;
+    const { id: listingId } = await params;
     const body = await request.json();
-    
+
     // Validate seller address if provided
     if (!body.seller) {
       return NextResponse.json(
@@ -44,10 +45,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     const listing = await listings.findOne({ _id: listingId });
 
     if (!listing) {
-      return NextResponse.json(
-        { error: 'Listing not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Listing not found' }, { status: 404 });
     }
 
     // Verify the requesting user is the seller
@@ -69,10 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
     const offer = await offers.findOne({ _id: offerId, listingId });
 
     if (!offer) {
-      return NextResponse.json(
-        { error: 'Offer not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Offer not found' }, { status: 404 });
     }
 
     if (offer.status !== 'ACTIVE') {
@@ -125,10 +120,10 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
 
     // Mark all other offers for this listing as EXPIRED
     await offers.updateMany(
-      { 
+      {
         listingId,
         _id: { $ne: offerId },
-        status: 'ACTIVE'
+        status: 'ACTIVE',
       },
       {
         $set: {
@@ -160,7 +155,6 @@ export async function POST(request: NextRequest, { params }: RouteParams): Promi
         priceWei: offer.priceWei,
       },
     });
-
   } catch (error) {
     console.error('Failed to accept offer:', error);
     return NextResponse.json(
