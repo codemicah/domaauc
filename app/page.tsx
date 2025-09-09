@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Metadata } from 'next';
 import Header from '@/components/ui/header';
+import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'DomaAuc - Tokenized Domain Dutch Auction Platform',
@@ -184,12 +185,12 @@ export default function Home(): React.ReactElement {
       <footer className="relative z-10 border-t border-white/10 bg-white/5 backdrop-blur-xl p-8">
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-6 h-6 bg-gradient-to-br from-blue-400 to-purple-600 rounded-lg"></div>
+            <Image src="/logo.svg" alt="DomaAuc" width={24} height={24} />
             <span className="text-white font-semibold">DomaAuc</span>
           </div>
           <p className="text-white/60">
-            &copy; 2025 DomaAuc. Built with Next.js and Doma Protocol.
-            Revolutionizing domain trading through blockchain technology.
+            &copy; 2025 DomaAuc. Built on Doma Protocol. Revolutionizing domain
+            trading through blockchain technology.
           </p>
         </div>
       </footer>

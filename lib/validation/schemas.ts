@@ -4,8 +4,8 @@ export const chainIdSchema = z.string().regex(/^eip155:\d+$/);
 export const addressSchema = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 
 const priceInfoSchema = z.object({
-  amount: z.number().positive(),
-  currency: z.enum(['ETH', 'USDC', 'MATIC', 'AVAX', 'BNB']),
+  amount: z.string(),
+  currency: z.enum(['ETH', 'USDC', 'AVAX', 'WETH']),
 });
 
 export const createListingSchema = z
@@ -36,7 +36,7 @@ export const createListingSchema = z
 
 export const placeOfferSchema = z.object({
   listingId: z.string().min(1),
-  username: z.string().min(2).max(32),
+  username: z.string().optional(),
   price: priceInfoSchema,
   priceWei: z.string().regex(/^\d+$/),
 });

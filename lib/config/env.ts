@@ -4,6 +4,7 @@ import {
   type ClientEnvConfig,
   type ServerEnvConfig,
 } from '@/lib/validation/schemas';
+import { SupportedCurrency } from '../doma/sdk';
 
 // Client-side environment config (only NEXT_PUBLIC_ variables)
 function getClientEnvConfig(): ClientEnvConfig {
@@ -72,3 +73,11 @@ export function getSupportedChains(): string[] {
     (chain: string) => chain.trim()
   );
 }
+
+export const defaultCurrency: SupportedCurrency = {
+  name: 'USDC',
+  symbol: 'USDC',
+  contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+  decimals: 6,
+  type: 'ALL',
+};

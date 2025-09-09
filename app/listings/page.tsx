@@ -5,7 +5,7 @@ import { ListingMeta } from '@/lib/doma/types';
 import { supportedChains } from '@/lib/wagmi/config';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { formatEther } from 'viem';
+import { formatUnits } from 'viem';
 import { useAccount } from 'wagmi';
 
 export default function ListingsPage(): React.ReactElement {
@@ -56,21 +56,13 @@ export default function ListingsPage(): React.ReactElement {
           case 'expiring':
             return new Date(a.endAt).getTime() - new Date(b.endAt).getTime();
           case 'price-high':
-            const priceA =
-              a.startPrice?.amount ||
-              parseFloat(formatEther(BigInt(a.startPriceWei)));
-            const priceB =
-              b.startPrice?.amount ||
-              parseFloat(formatEther(BigInt(b.startPriceWei)));
-            return priceB - priceA;
+            const priceA = BigInt(a.startPrice.amount);
+            const priceB = BigInt(b.startPrice.amount);
+            return Number(priceB - priceA);
           case 'price-low':
-            const priceLowA =
-              a.startPrice?.amount ||
-              parseFloat(formatEther(BigInt(a.startPriceWei)));
-            const priceLowB =
-              b.startPrice?.amount ||
-              parseFloat(formatEther(BigInt(b.startPriceWei)));
-            return priceLowA - priceLowB;
+            const priceLowA = BigInt(a.startPrice.amount);
+            const priceLowB = BigInt(b.startPrice.amount);
+            return Number(priceLowA - priceLowB);
           default:
             return 0;
         }
@@ -101,21 +93,13 @@ export default function ListingsPage(): React.ReactElement {
     const chains = [...new Set(listings.map((listing) => listing.chainId))];
     return chains.map((chainId) => ({
       value: chainId,
-      label:
-        chainId.split(':')[1] === '84532'
-          ? 'Base Sepolia'
-          : chainId.split(':')[1] === '11155111'
-            ? 'Ethereum Sepolia'
-            : `Chain ${chainId.split(':')[1]}`,
+      label: supportedChains.find((c) => c.id === Number(chainId.split(':')[1]))
+        ?.name,
     }));
   };
 
-  const formatPrice = (listing: ListingMeta) => {
-    if (listing.startPrice) {
-      return `${listing.startPrice.amount} ${listing.startPrice.currency}`;
-    }
-    // Fallback to legacy format
-    return `${formatEther(BigInt(listing.startPriceWei))} ETH`;
+  const formatPrice = (amount: string, currency: string) => {
+    return `${formatUnits(BigInt(amount), 6)} ${currency}`; // TODO: handle different decimals
   };
 
   const getRemainingTime = (endAt: string) => {
@@ -352,7 +336,10 @@ export default function ListingsPage(): React.ReactElement {
                               Current Price
                             </div>
                             <div className="text-sm font-semibold text-blue-400">
-                              {formatPrice(listing)}
+                              {formatPrice(
+                                listing.startPrice.amount,
+                                listing.startPrice.currency
+                              )}
                             </div>
                           </div>
                           <div>
@@ -360,9 +347,10 @@ export default function ListingsPage(): React.ReactElement {
                               Reserve
                             </div>
                             <div className="text-sm font-semibold text-white/80">
-                              {listing.reservePrice
-                                ? `${listing.reservePrice.amount} ${listing.reservePrice.currency}`
-                                : `${formatEther(BigInt(listing.reservePriceWei))} ETH`}
+                              {formatPrice(
+                                listing.reservePrice.amount,
+                                listing.reservePrice.currency
+                              )}
                             </div>
                           </div>
                         </div>

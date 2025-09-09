@@ -34,7 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { listingId, username, priceWei } = validationResult.data;
 
     // Validate username format
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    if (username && !/^[a-zA-Z0-9_-]+$/.test(username)) {
       return NextResponse.json(
         {
           error:

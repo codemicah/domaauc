@@ -57,9 +57,10 @@ export default function ListingDetailPage(): React.ReactElement {
 
           // Find the currency that matches the listing's currency
           const currency = foundListing.startPrice?.currency;
-          const matchedCurrency = currencyData.currencies.find(
-            (c) => c.name.toLowerCase() === currency.toLowerCase()
-          );
+          const matchedCurrency =
+            currencyData.find(
+              (c) => c.name.toLowerCase() === currency.toLowerCase()
+            ) || currencyData.find((c) => c.name === 'USDC');
 
           setListingCurrency(matchedCurrency);
         } catch (currencyErr) {
@@ -184,8 +185,8 @@ export default function ListingDetailPage(): React.ReactElement {
             {/* Left Column */}
             <div className="space-y-6 min-w-0">
               <DutchPricePreview
-                startPriceWei={listing.startPriceWei}
-                reservePriceWei={listing.reservePriceWei}
+                startPrice={BigInt(listing.startPrice.amount)}
+                reservePrice={BigInt(listing.reservePrice.amount)}
                 startAt={listing.startAt}
                 endAt={listing.endAt}
                 currency={listingCurrency!}

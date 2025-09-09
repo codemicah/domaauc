@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { DomainToken } from '@/lib/doma/types';
 import { DomainPicker } from '@/components/ui/domain-picker';
 import { DutchPricePreview } from './dutch-price-preview';
-import { parseEther } from 'viem';
+import { parseEther, parseUnits } from 'viem';
 import { useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
+import { useAccount, useWalletClient } from 'wagmi';
 import {
   getSupportedCurrencies,
   getOrderbookFee,
@@ -14,18 +14,21 @@ import {
   type MarketplaceFee,
 } from '@/lib/doma/sdk';
 import Image from 'next/image';
+import { DomaOrderbookError } from '@doma-protocol/orderbook-sdk';
+import { defaultCurrency } from '@/lib/config/env';
 
 export function CreateListingForm(): React.ReactElement {
   const router = useRouter();
   const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const [selectedDomain, setSelectedDomain] = useState<DomainToken | null>(
     null
   );
   const [formData, setFormData] = useState({
     startPrice: '1.0',
     reservePrice: '0.1',
-    currency: 'ETH',
-    duration: '24', // hours
+    currency: 'USDC',
+    duration: '24',
   });
   const [supportedCurrencies, setSupportedCurrencies] = useState<
     SupportedCurrency[]
@@ -35,6 +38,8 @@ export function CreateListingForm(): React.ReactElement {
   const [loadingFees, setLoadingFees] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<SupportedCurrency>(defaultCurrency);
 
   // Load supported currencies and fees when domain is selected
   useEffect(() => {
@@ -54,9 +59,12 @@ export function CreateListingForm(): React.ReactElement {
         contractAddress: selectedDomain.tokenContract,
         chainId: selectedDomain.chainId,
       });
-      setSupportedCurrencies(response.currencies);
-      const firstCurrency = response.currencies[0];
-      if (firstCurrency?.symbol) {
+
+      setSupportedCurrencies(response);
+      const firstCurrency = response[0];
+
+      if (firstCurrency?.contractAddress) {
+        setSelectedCurrency(firstCurrency);
         setFormData((prev) => ({ ...prev, currency: firstCurrency.symbol }));
       }
     } catch (error) {
@@ -91,9 +99,20 @@ export function CreateListingForm(): React.ReactElement {
       return;
     }
 
+    if (!address || !walletClient) {
+      setError('Please connect your wallet');
+      return;
+    }
+
+    if (!selectedCurrency) {
+      setError('Please select a currency');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
+    let chainId = selectedDomain.chainId;
     try {
       const startAt = new Date(Date.now() + 5 * 60 * 1000); // Start in 5 minutes
       const endAt = new Date(
@@ -108,14 +127,20 @@ export function CreateListingForm(): React.ReactElement {
         body: JSON.stringify({
           tokenContract: selectedDomain.tokenContract,
           tokenId: selectedDomain.tokenId,
-          chainId: selectedDomain.chainId,
+          chainId,
           domain: selectedDomain.name,
           startPrice: {
-            amount: parseFloat(formData.startPrice),
+            amount: parseUnits(
+              formData.startPrice,
+              selectedCurrency.decimals
+            ).toString(),
             currency: formData.currency,
           },
           reservePrice: {
-            amount: parseFloat(formData.reservePrice),
+            amount: parseUnits(
+              formData.reservePrice,
+              selectedCurrency.decimals
+            ).toString(),
             currency: formData.currency,
           },
           startPriceWei: parseEther(formData.startPrice).toString(),
@@ -131,9 +156,33 @@ export function CreateListingForm(): React.ReactElement {
         throw new Error(errorData.error || 'Failed to create listing');
       }
 
+      //create listing on doma
+      // const listingResult = await createListing({
+      //   contractAddress: selectedDomain.tokenContract,
+      //   tokenId: selectedDomain.tokenId,
+      //   chainId,
+      //   price: parseEther(formData.startPrice).toString(), // in wei
+      //   currency: selectedCurrency.contractAddress,
+      //   walletClient: walletClient,
+      //   onProgress: (progress) => {
+      //     progress.map((p) => {
+      //       console.log(p);
+      //     });
+      //   },
+      // });
+
+      // console.log('Listing created on doma =====>', listingResult);
+
       const result = await response.json();
       router.push(`/dashboard/listings/${result.listingId}`);
     } catch (err) {
+      console.log(err);
+      if (err instanceof DomaOrderbookError) {
+        console.log(err.details);
+        console.log(err.code);
+        console.log(err.message);
+        console.log(err.context);
+      }
       setError(err instanceof Error ? err.message : 'Failed to create listing');
     } finally {
       setIsSubmitting(false);
@@ -141,6 +190,9 @@ export function CreateListingForm(): React.ReactElement {
   };
 
   const handleInputChange = (field: string, value: string): void => {
+    if (field === 'currency') {
+      setSelectedCurrency(supportedCurrencies.find((c) => c.symbol === value)!);
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -203,16 +255,14 @@ export function CreateListingForm(): React.ReactElement {
                   ) : supportedCurrencies.length > 0 ? (
                     supportedCurrencies.map((currency) => (
                       <option key={currency.symbol} value={currency.symbol}>
-                        {currency.symbol} - {currency.name}
+                        {currency.symbol}
                       </option>
                     ))
                   ) : (
                     <>
                       <option value="ETH">ETH - Ethereum</option>
                       <option value="USDC">USDC - USD Coin</option>
-                      <option value="MATIC">MATIC - Polygon</option>
                       <option value="AVAX">AVAX - Avalanche</option>
-                      <option value="BNB">BNB - Binance Coin</option>
                     </>
                   )}
                 </select>
@@ -270,13 +320,12 @@ export function CreateListingForm(): React.ReactElement {
                   required
                 >
                   <option value="1">1 hour</option>
-                  <option value="6">6 hours</option>
                   <option value="12">12 hours</option>
                   <option value="24">24 hours</option>
-                  <option value="48">48 hours</option>
-                  <option value="72">72 hours</option>
-                  <option value="168">1 week (168 hours)</option>
-                  <option value="180">180 hours (max)</option>
+                  <option value="168">7 days</option>
+                  <option value="720">1 month</option>
+                  <option value="2160">3 months</option>
+                  <option value="4320">180 days</option>
                 </select>
               </div>
 
@@ -379,12 +428,19 @@ export function CreateListingForm(): React.ReactElement {
             </div>
           )}
 
-          {isValidForm && (
+          {isValidForm && selectedCurrency && (
             <DutchPricePreview
-              startPriceWei={parseEther(formData.startPrice).toString()}
-              reservePriceWei={parseEther(formData.reservePrice).toString()}
+              startPrice={parseUnits(
+                formData.startPrice,
+                selectedCurrency!.decimals
+              )}
+              reservePrice={parseUnits(
+                formData.reservePrice,
+                selectedCurrency!.decimals
+              )}
               startAt={previewStartAt}
               endAt={previewEndAt}
+              currency={selectedCurrency!}
             />
           )}
         </div>

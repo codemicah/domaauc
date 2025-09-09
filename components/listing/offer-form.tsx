@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useWalletClient } from 'wagmi';
-import { parseEther, formatEther, parseUnits, formatUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { ListingMeta } from '@/lib/doma/types';
 import { currentDutchPrice } from '@/lib/price/dutch';
-import {
-  createOffer,
-  getSupportedCurrencies,
-  SupportedCurrency,
-} from '@/lib/doma/sdk';
+import { getSupportedCurrencies, SupportedCurrency } from '@/lib/doma/sdk';
+import { defaultCurrency } from '@/lib/config/env';
 
 interface OfferFormProps {
   listing: ListingMeta;
@@ -24,10 +21,12 @@ export function OfferForm({
 }: OfferFormProps): React.ReactElement {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const [selectedCurrency, setSelectedCurrency] =
+    useState<SupportedCurrency>(defaultCurrency);
   const [formData, setFormData] = useState({
     username: '',
     offerAmount: '',
-    currency: listingCurrency.contractAddress,
+    currency: selectedCurrency.contractAddress,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,38 +36,48 @@ export function OfferForm({
   >([]);
   const [loadingCurrencies, setLoadingCurrencies] = useState(true);
 
-  const currentPrice = currentDutchPrice({
-    startPriceWei: BigInt(listing.startPriceWei),
-    reservePriceWei: BigInt(listing.reservePriceWei),
-    startMs: new Date(listing.startAt).getTime(),
-    endMs: new Date(listing.endAt).getTime(),
-  });
+  const currentPrice = loadCurrentPrice();
 
-  const reservePrice = BigInt(listing.reservePriceWei);
+  const reservePrice = BigInt(listing.reservePrice.amount);
   const isAuctionActive =
     new Date() >= new Date(listing.startAt) &&
     new Date() < new Date(listing.endAt);
-
-  const selectedCurrency = supportedCurrencies.find(
-    (c) => c.contractAddress === formData.currency
-  );
 
   // Load supported currencies
   useEffect(() => {
     const loadCurrencies = async () => {
       setLoadingCurrencies(true);
-      const result = await getSupportedCurrencies({
+      const result = (await getSupportedCurrencies({
         contractAddress: listing.tokenContract,
         chainId: listing.chainId,
-      });
+      })) as SupportedCurrency[];
+
       setSupportedCurrencies(
-        result.currencies.filter(({ type }) => type !== 'LISTING_ONLY')
+        result.filter(({ type }) => type !== 'LISTING_ONLY')
       );
+
+      initPrice();
       setLoadingCurrencies(false);
+    };
+
+    const initPrice = () => {
+      setFormData((prev) => ({
+        ...prev,
+        offerAmount: currentPrice.toString(),
+      }));
     };
 
     loadCurrencies();
   }, [listing.tokenContract, listing.chainId]);
+
+  function loadCurrentPrice() {
+    return currentDutchPrice({
+      startPrice: BigInt(listing.startPrice.amount),
+      reservePrice: BigInt(listing.reservePrice.amount),
+      startMs: new Date(listing.startAt).getTime(),
+      endMs: new Date(listing.endAt).getTime(),
+    });
+  }
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -83,23 +92,16 @@ export function OfferForm({
       return;
     }
 
+    if (!selectedCurrency) {
+      setError('please select a currency');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const offerAmountWei = selectedCurrency
-        ? parseUnits(formData.offerAmount, selectedCurrency.decimals)
-        : parseEther(formData.offerAmount);
-
-      // Only check reserve price if offering in ETH (for now)
-      if (
-        formData.currency === '0x0000000000000000000000000000000000000000' &&
-        offerAmountWei < reservePrice
-      ) {
-        throw new Error(
-          `Offer must be at least ${formatEther(reservePrice)} ETH (reserve price)`
-        );
-      }
+      const offerAmount = loadCurrentPrice().toString();
 
       // First, create the offer in our database
       const dbResponse = await fetch('/api/offers', {
@@ -111,9 +113,9 @@ export function OfferForm({
           listingId: listing._id,
           bidder: address,
           username: formData.username,
-          priceWei: offerAmountWei.toString(),
+          priceWei: offerAmount.toString(),
           price: {
-            amount: parseFloat(formatUnits(offerAmountWei, 6)),
+            amount: offerAmount.toString(),
             currency: selectedCurrency?.name,
           },
           currency: selectedCurrency?.contractAddress,
@@ -129,49 +131,59 @@ export function OfferForm({
       const dbResult = await dbResponse.json();
 
       // Then, create the offer on-chain using Doma SDK
-      if (walletClient) {
-        try {
-          setProgress('Creating on-chain offer...');
-          const sdkResult = await createOffer({
-            contractAddress: listing.tokenContract,
-            tokenId: listing.tokenId,
-            chainId: listing.chainId,
-            price: offerAmountWei.toString(),
-            currency: formData.currency,
-            walletClient,
-            onProgress: (step, progressPercent) => {
-              setProgress(`${step} (${progressPercent}%)`);
-            },
-          });
+      // if (walletClient) {
+      //   try {
+      //     setProgress('Creating on-chain offer...');
+      //     const result = await createOffer({
+      //       contractAddress: listing.tokenContract,
+      //       tokenId: listing.tokenId,
+      //       chainId: listing.chainId,
+      //       price: offerAmountWei.toString(),
+      //       currency: selectedCurrency!.contractAddress,
+      //       walletClient,
+      //       onProgress: (progress) => {
+      //         setProgress(
+      //           progress.length > 0
+      //             ? progress[progress.length - 1]?.progressState || ''
+      //             : ''
+      //         );
+      //       },
+      //     });
 
-          // Update the database with the Doma order ID
-          await fetch('/api/offers', {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              offerId: dbResult.offerId,
-              domaOfferId: sdkResult.orderId,
-              transactionHash: sdkResult.transactionHash,
-            }),
-          });
+      //     // Update the database with the Doma order ID
+      //     await fetch('/api/offers', {
+      //       method: 'PATCH',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //       },
+      //       body: JSON.stringify({
+      //         offerId: result.orders![0]!.orderId,
+      //         domaOfferId: crypto.randomUUID(),
+      //         transactionHash: '',
+      //       }),
+      //     });
 
-          setProgress('Offer placed successfully!');
-        } catch (sdkError) {
-          console.warn(
-            'SDK offer creation failed, but database offer was created:',
-            sdkError
-          );
-          setProgress('Offer placed (on-chain integration pending)');
-        }
-      }
+      //     setProgress('Offer placed successfully!');
+      //   } catch (sdkError: any) {
+      //     console.log(sdkError);
+      //     console.warn(
+      //       'SDK offer creation failed, but database offer was created:',
+      //       sdkError
+      //     );
+      //     setProgress('Offer placed (on-chain integration pending)');
+      //     setError(
+      //       sdkError instanceof Error
+      //         ? sdkError.message
+      //         : 'Failed to place offer'
+      //     );
+      //   }
+      // }
 
       // Reset form
       setFormData({
         username: '',
         offerAmount: '',
-        currency: listingCurrency?.contractAddress,
+        currency: selectedCurrency!.contractAddress,
       });
       setProgress('');
       onOfferSubmitted();
@@ -183,13 +195,17 @@ export function OfferForm({
   };
 
   const handleInputChange = (field: string, value: string): void => {
+    if (field === 'currency') {
+      setSelectedCurrency(supportedCurrencies.find((c) => c.symbol === value)!);
+    }
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const isValidForm =
-    formData.username.length >= 2 &&
-    formData.username.length <= 32 &&
-    /^[a-zA-Z0-9_-]+$/.test(formData.username) &&
+    (formData.username &&
+      formData.username.length >= 2 &&
+      formData.username.length <= 32 &&
+      /^[a-zA-Z0-9_-]+$/.test(formData.username)) ||
     parseFloat(formData.offerAmount || '0') > 0;
 
   if (!isAuctionActive) {
@@ -224,54 +240,33 @@ export function OfferForm({
     }
   }
 
-  const ETH_DECIMAL_PLACES = 18;
   return (
     <div className="glass-card">
       <h3 className="text-lg font-semibold text-white mb-4">Place Offer</h3>
 
-      <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+      {/* <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
         <div className="flex justify-between items-center mb-2">
           <span className="text-white/70">Current Dutch Price:</span>
           <span className="text-blue-400 font-semibold">
-            {parseFloat(formatUnits(currentPrice, ETH_DECIMAL_PLACES)).toFixed(
-              2
-            )}{' '}
+            {parseFloat(
+              formatUnits(currentPrice, listingCurrency.decimals)
+            ).toFixed(2)}{' '}
             {listingCurrency?.symbol}
           </span>
         </div>
         <div className="flex justify-between items-center">
           <span className="text-white/70">Reserve Price:</span>
           <span className="text-white/90">
-            {parseFloat(formatUnits(reservePrice, ETH_DECIMAL_PLACES)).toFixed(
-              2
-            )}{' '}
+            {parseFloat(
+              formatUnits(reservePrice, listingCurrency.decimals)
+            ).toFixed(2)}{' '}
             {listingCurrency?.symbol}
           </span>
         </div>
-      </div>
+      </div> */}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Username (displayed on leaderboard)
-          </label>
-          <input
-            type="text"
-            value={formData.username}
-            onChange={(e) => handleInputChange('username', e.target.value)}
-            className="glass-input w-full"
-            placeholder="Enter your username"
-            minLength={2}
-            maxLength={32}
-            pattern="[a-zA-Z0-9_-]+"
-            title="Username can only contain letters, numbers, underscores, and hyphens"
-            required
-          />
-          <p className="text-xs text-white/50 mt-1">
-            2-32 characters, letters, numbers, underscores, and hyphens only
-          </p>
-        </div>
-
+        {/* Currency selection */}
         <div>
           <label className="block text-sm font-medium text-white/80 mb-2">
             Currency
@@ -299,6 +294,7 @@ export function OfferForm({
           )}
         </div>
 
+        {/* Offer amount */}
         <div>
           <label className="block text-sm font-medium text-white/80 mb-2">
             Offer Amount ({selectedCurrency?.symbol})
@@ -306,18 +302,19 @@ export function OfferForm({
           <input
             type="number"
             step={selectedCurrency?.decimals === 6 ? '0.01' : '0.001'}
-            min={
-              formData.currency === '0x0000000000000000000000000000000000000000'
-                ? formatEther(reservePrice)
-                : '0'
-            }
-            value={formData.offerAmount}
+            min={parseFloat(
+              formatUnits(reservePrice, selectedCurrency?.decimals || 6)
+            ).toFixed(2)}
+            value={parseFloat(
+              formatUnits(currentPrice, selectedCurrency?.decimals || 6)
+            ).toFixed(2)}
             onChange={(e) => handleInputChange('offerAmount', e.target.value)}
             className="glass-input w-full"
             placeholder={`Enter amount in ${selectedCurrency?.symbol}`}
             required
+            disabled
           />
-          <div className="flex justify-between text-xs text-white/50 mt-1">
+          {/* <div className="flex justify-between text-xs text-white/50 mt-1">
             {formData.currency ===
               '0x0000000000000000000000000000000000000000' && (
               <span>
@@ -349,8 +346,30 @@ export function OfferForm({
                 Use current price
               </button>
             )}
-          </div>
+          </div> */}
         </div>
+
+        {/* Username */}
+        {/* <div>
+          <label className="block text-sm font-medium text-white/80 mb-2">
+            Username (displayed on leaderboard)
+          </label>
+          <input
+            type="text"
+            value={formData.username}
+            onChange={(e) => handleInputChange('username', e.target.value)}
+            className="glass-input w-full"
+            placeholder="Enter your username"
+            minLength={2}
+            maxLength={32}
+            pattern="[a-zA-Z0-9_-]+"
+            title="Username can only contain letters, numbers, underscores, and hyphens"
+            required
+          />
+          <p className="text-xs text-white/50 mt-1">
+            2-32 characters, letters, numbers, underscores, and hyphens only
+          </p>
+        </div> */}
 
         {progress && (
           <div className="text-blue-400 text-sm bg-blue-400/10 border border-blue-400/20 rounded-lg p-3">

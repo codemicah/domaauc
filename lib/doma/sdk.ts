@@ -8,8 +8,12 @@ import {
   OnProgressCallback,
   OrderbookType,
 } from '@doma-protocol/orderbook-sdk';
+
+export interface SupportedCurrency extends CurrencyToken {
+  type?: 'ALL' | 'LISTING_ONLY';
+}
 export interface GetSupportedCurrenciesResponse {
-  currencies: CurrencyToken[];
+  currencies: SupportedCurrency[];
 }
 
 export interface MarketplaceFee {
@@ -74,11 +78,13 @@ export async function getSupportedCurrencies(params: {
 }) {
   const sdk = await initializeDomaSDK();
 
-  return await sdk.client.getSupportedCurrencies({
-    chainId: params.chainId,
-    contractAddress: params.contractAddress,
-    orderbook: OrderbookType.DOMA,
-  });
+  return (
+    await sdk.client.getSupportedCurrencies({
+      chainId: params.chainId,
+      contractAddress: params.contractAddress,
+      orderbook: OrderbookType.DOMA,
+    })
+  ).currencies.filter((c) => c.symbol === 'USDC'); // support only USDC for now
 }
 
 export async function getOrderbookFee(params: {
@@ -163,6 +169,7 @@ export async function createListing(params: {
           tokenId: params.tokenId,
           price: params.price,
           currencyContractAddress: params.currency,
+          itemType: 3,
         },
       ],
     },

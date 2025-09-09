@@ -24,7 +24,7 @@ export function DomainCard({
       }`}
       onClick={() => onSelect(domain)}
     >
-      <div className="aspect-square mb-4 rounded-lg overflow-hidden bg-white/5">
+      {/* <div className="aspect-square mb-4 rounded-lg overflow-hidden bg-white/5">
         {domain.image && !imageError ? (
           <Image
             src={domain.image}
@@ -49,9 +49,9 @@ export function DomainCard({
             </svg>
           </div>
         )}
-      </div>
+      </div> */}
 
-      <h3 className="text-lg font-semibold text-white mb-2 truncate">
+      <h3 className="text-lg font-semibold text-white mb-2 truncate text-center">
         {domain.name}
       </h3>
 
@@ -62,7 +62,7 @@ export function DomainCard({
       )}
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs text-white/50">
+        {/* <div className="flex items-center justify-between text-xs text-white/50">
           <span className="truncate flex-1 mr-2">Token ID:</span>
           <div className="flex items-center gap-1 min-w-0">
             <span className="truncate max-w-[120px]" title={domain.tokenId}>
@@ -91,8 +91,8 @@ export function DomainCard({
               </svg>
             </button>
           </div>
-        </div>
-        <div className="flex items-center justify-between text-xs text-white/50">
+        </div> */}
+        {/* <div className="flex items-center justify-between text-xs text-white/50">
           <span className="truncate flex-1 mr-2">Contract:</span>
           <div className="flex items-center gap-1 min-w-0">
             <span className="truncate" title={domain.tokenContract}>
@@ -122,7 +122,7 @@ export function DomainCard({
               </svg>
             </button>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

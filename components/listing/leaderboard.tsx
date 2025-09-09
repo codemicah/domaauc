@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formatEther, formatUnits } from 'viem';
+import { formatEther, formatUnits, parseUnits } from 'viem';
 import { formatDistanceToNow } from 'date-fns';
 import { SupportedCurrency } from '@/lib/doma/sdk';
 
@@ -11,13 +11,14 @@ interface LeaderboardEntry {
   bidder: `0x${string}`;
   username: string;
   priceWei: string;
+  price: { amount: number; currency: string };
   createdAt: string;
   isTopOffer: boolean;
 }
 
 interface LeaderboardProps {
   listingId: string;
-  listingCurrency?: SupportedCurrency | null;
+  listingCurrency: SupportedCurrency;
   refreshTrigger?: number;
 }
 
@@ -116,7 +117,7 @@ export function Leaderboard({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-white">
-                        {entry.username}
+                        {entry.bidder.slice(0, 6)}...{entry.bidder.slice(-4)}
                       </span>
                       {entry.isTopOffer && (
                         <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
@@ -124,9 +125,9 @@ export function Leaderboard({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-white/50">
+                    {/* <div className="text-xs text-white/50">
                       {entry.bidder.slice(0, 6)}...{entry.bidder.slice(-4)}
-                    </div>
+                    </div> */}
                   </div>
                 </div>
 
@@ -136,10 +137,13 @@ export function Leaderboard({
                       entry.isTopOffer ? 'text-yellow-400' : 'text-white'
                     }`}
                   >
-                    {listingCurrency 
-                      ? parseFloat(formatUnits(BigInt(entry.priceWei), listingCurrency.decimals)).toFixed(2)
-                      : parseFloat(formatEther(BigInt(entry.priceWei))).toFixed(2)
-                    } {listingCurrency?.symbol || 'ETH'}
+                    {parseFloat(
+                      formatUnits(
+                        BigInt(String(entry.price.amount)),
+                        listingCurrency.decimals
+                      )
+                    ).toFixed(2)}{' '}
+                    {listingCurrency.symbol}
                   </div>
                   <div className="text-xs text-white/50">
                     {formatDistanceToNow(new Date(entry.createdAt), {

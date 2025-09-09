@@ -1,24 +1,24 @@
 export type ChainCAIP2 = `eip155:${number}`;
 
 export interface PriceInfo {
-  amount: number;
-  currency: string; // Now supports any currency from getSupportedCurrencies
+  amount: string;
+  currency: string;
 }
 
 export interface ListingMeta {
   _id: string;
-  orderId?: string;              // Doma order id if created via SDK (optional for offers-only Dutch)
+  orderId?: string;
   tokenContract: `0x${string}`;
   tokenId: string;
   chainId: ChainCAIP2;
   seller: `0x${string}`;
-  domain?: string;               // Domain name for display
+  domain?: string;
   startPrice: PriceInfo;
   reservePrice: PriceInfo;
-  startPriceWei: string;         // bigint string (legacy)
-  reservePriceWei: string;       // bigint string (legacy)
-  startAt: string;               // ISO
-  endAt: string;                 // ISO
+  startPriceWei: string; // bigint string (legacy)
+  reservePriceWei: string; // bigint string (legacy)
+  startAt: string; // ISO
+  endAt: string; // ISO
   status: 'ACTIVE' | 'EXPIRED' | 'SOLD' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
@@ -29,9 +29,9 @@ export interface OfferMeta {
   listingId: string;
   domaOfferId?: string | undefined;
   bidder: `0x${string}`;
-  usernameSnapshot: string;
+  usernameSnapshot?: string | undefined;
   price: PriceInfo;
-  priceWei: string;              // legacy
+  priceWei: string; // legacy
   createdAt: string;
   status: 'ACTIVE' | 'CANCELLED' | 'ACCEPTED' | 'EXPIRED';
 }

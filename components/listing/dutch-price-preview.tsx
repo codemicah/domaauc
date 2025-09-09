@@ -6,18 +6,18 @@ import { formatEther, formatUnits } from 'viem';
 import { SupportedCurrency } from '@/lib/doma/sdk';
 
 interface DutchPricePreviewProps {
-  startPriceWei: string;
-  reservePriceWei: string;
+  startPrice: bigint;
+  reservePrice: bigint;
   startAt: string;
   endAt: string;
-  currency?: SupportedCurrency | null;
+  currency?: SupportedCurrency;
   currencyLoading?: boolean;
   className?: string;
 }
 
 export function DutchPricePreview({
-  startPriceWei,
-  reservePriceWei,
+  startPrice,
+  reservePrice,
   startAt,
   endAt,
   currency,
@@ -33,8 +33,8 @@ export function DutchPricePreview({
       const endMs = new Date(endAt).getTime();
 
       const price = currentDutchPrice({
-        startPriceWei: BigInt(startPriceWei),
-        reservePriceWei: BigInt(reservePriceWei),
+        startPrice,
+        reservePrice,
         startMs,
         endMs,
         nowMs: now,
@@ -60,26 +60,26 @@ export function DutchPricePreview({
     const interval = setInterval(updatePrice, 1000);
 
     return () => clearInterval(interval);
-  }, [startPriceWei, reservePriceWei, startAt, endAt]);
+  }, [startPrice, reservePrice, startAt, endAt]);
 
   const generatePricePoints = (): Array<{ time: number; price: number }> => {
     const startMs = new Date(startAt).getTime();
     const endMs = new Date(endAt).getTime();
     const duration = endMs - startMs;
-    const points = [];
+    const points: Array<{ time: number; price: number }> = [];
 
     for (let i = 0; i <= 100; i += 5) {
       const timeMs = startMs + (duration * i) / 100;
       const price = currentDutchPrice({
-        startPriceWei: BigInt(startPriceWei),
-        reservePriceWei: BigInt(reservePriceWei),
+        startPrice,
+        reservePrice,
         startMs,
         endMs,
         nowMs: timeMs,
       });
       points.push({
         time: i,
-        price: Number(formatEther(price)),
+        price: Number(formatUnits(price, currency?.decimals ?? 6)),
       });
     }
 
@@ -89,7 +89,7 @@ export function DutchPricePreview({
   const pricePoints = generatePricePoints();
   const maxPrice = Math.max(...pricePoints.map((p) => p.price));
   const minPrice = Math.min(...pricePoints.map((p) => p.price));
-  const ETH_DECIMAL_PLACES = 18;
+
   return (
     <div className={`glass-card ${className}`}>
       <div className="mb-6">
@@ -98,9 +98,9 @@ export function DutchPricePreview({
         </h3>
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-blue-400">
-            {parseFloat(formatUnits(currentPrice, ETH_DECIMAL_PLACES)).toFixed(
-              2
-            )}{' '}
+            {parseFloat(
+              formatUnits(currentPrice, currency?.decimals ?? 6)
+            ).toFixed(2)}{' '}
             {currency?.symbol}
           </div>
           <div className="text-sm text-white/70">{timeRemaining}</div>
@@ -155,7 +155,7 @@ export function DutchPricePreview({
             );
             const x = (progress / 100) * 400;
             const currentPriceNum = Number(
-              formatUnits(currentPrice, ETH_DECIMAL_PLACES)
+              formatUnits(currentPrice, currency?.decimals ?? 6)
             );
             const y =
               120 -
@@ -181,7 +181,7 @@ export function DutchPricePreview({
           <div className="text-white/60">Starting Price</div>
           <div className="text-white font-medium">
             {parseFloat(
-              formatUnits(BigInt(startPriceWei), ETH_DECIMAL_PLACES)
+              formatUnits(startPrice, currency?.decimals ?? 6)
             ).toFixed(2)}{' '}
             {currency?.symbol}
           </div>
@@ -190,7 +190,7 @@ export function DutchPricePreview({
           <div className="text-white/60">Reserve Price</div>
           <div className="text-white font-medium">
             {parseFloat(
-              formatUnits(BigInt(reservePriceWei), ETH_DECIMAL_PLACES)
+              formatUnits(reservePrice, currency?.decimals ?? 6)
             ).toFixed(2)}{' '}
             {currency?.symbol}
           </div>
