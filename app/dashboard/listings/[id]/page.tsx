@@ -135,11 +135,11 @@ export default function ListingDetailPage(): React.ReactElement {
                 <h1 className="text-2xl sm:text-3xl font-bold text-white break-words">
                   {listing.domain || `Domain #${listing.tokenId}`}
                 </h1>
-                <div className="text-white/70 text-sm sm:text-base">
+                <div className="text-white/50 text-xs sm:text-base">
                   <div className="break-all">Token ID: {listing.tokenId}</div>
-                  <div className="break-all">
+                  {/* <div className="break-all">
                     Contract: {listing.tokenContract}
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -206,6 +206,7 @@ export default function ListingDetailPage(): React.ReactElement {
                 listingId={listing._id}
                 listingCurrency={listingCurrency!}
                 refreshTrigger={refreshTrigger}
+                listingSeller={listing.seller}
               />
             </div>
           </div>

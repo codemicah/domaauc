@@ -24,6 +24,17 @@ export interface ListingMeta {
   updatedAt: string;
 }
 
+export interface MyListingsResponse extends ListingMeta {
+  offers: OfferMeta[];
+  totalOffers: number;
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
 export interface OfferMeta {
   _id: string;
   listingId: string;
@@ -33,7 +44,7 @@ export interface OfferMeta {
   price: PriceInfo;
   priceWei: string; // legacy
   createdAt: string;
-  status: 'ACTIVE' | 'CANCELLED' | 'ACCEPTED' | 'EXPIRED';
+  status: 'ACTIVE' | 'CANCELLED' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED';
 }
 
 export interface UserSession {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getListingsCollection } from '@/lib/db/mongo';
+import { getListingsCollection, getOffersCollection } from '@/lib/db/mongo';
 import { createListingSchema, addressSchema } from '@/lib/validation/schemas';
 import { ListingMeta, ChainCAIP2 } from '@/lib/doma/types';
 
@@ -62,16 +62,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Validate time logic
-    const startTime = new Date(startAt);
+    let startTime = new Date(startAt);
     const endTime = new Date(endAt);
     const now = new Date();
 
-    if (startTime <= now) {
-      return NextResponse.json(
-        { error: 'Start time must be in the future' },
-        { status: 400 }
-      );
-    }
+    if (startTime <= now) startTime = now;
 
     if (endTime <= startTime) {
       return NextResponse.json(
@@ -160,22 +155,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = parseInt(searchParams.get('offset') || '0');
 
     const listings = await getListingsCollection();
+    const offers = await getOffersCollection();
 
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
-    if (seller) filter.seller = seller.toLowerCase();
+    if (seller) filter.seller = seller;
 
-    const results = await listings
+    let results = await listings
       .find(filter)
       .sort({ createdAt: -1 })
       .skip(offset)
       .limit(Math.min(limit, 100))
       .toArray();
 
+    let totalOffers = 0;
+
+    // populate offers
+    results = await Promise.all(
+      results.map(async (listing) => {
+        const offersForListing = await offers
+          .find({ listingId: listing._id })
+          .toArray();
+        totalOffers += offersForListing.length;
+        return { ...listing, offers: offersForListing };
+      })
+    );
+
     const total = await listings.countDocuments(filter);
 
     return NextResponse.json({
       listings: results,
+      totalOffers,
       pagination: {
         total,
         limit,

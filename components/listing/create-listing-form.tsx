@@ -114,7 +114,7 @@ export function CreateListingForm(): React.ReactElement {
 
     let chainId = selectedDomain.chainId;
     try {
-      const startAt = new Date(Date.now() + 5 * 60 * 1000); // Start in 5 minutes
+      const startAt = new Date(Date.now());
       const endAt = new Date(
         startAt.getTime() + parseInt(formData.duration) * 60 * 60 * 1000
       );
@@ -212,14 +212,12 @@ export function CreateListingForm(): React.ReactElement {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 p-4 sm:p-6">
-      <div className="text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Create Dutch Auction
-        </h1>
-        <p className="text-white/70 text-sm sm:text-base">
-          List your tokenized domain for auction with declining price
-        </p>
-      </div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+        Create Auction
+      </h1>
+      <p className="text-white/70 text-sm sm:text-base">
+        List your tokenized domain for auction with declining price
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
         {/* Left Column - Form */}
